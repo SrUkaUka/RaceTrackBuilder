@@ -25,38 +25,57 @@ from . import extrude_separated_objects
 from . import Find_invalid_data
 from . import apply_settings
 
-
 def register():
     # Registrar todos los módulos
-    add_quadblock_triblock.register()
-    align_vertices.register()
-    assets_browser.register()
-    fly_mode.register()
-    move_objects.register()
-    ps1_material_config.register()
-    relative_track.register()
-    render_menu.register()
-    snap_vertex_to_closest.register()
-    vertex_lighting.register()
-    extrude_separated_objects.register()  # Corregido
-    Find_invalid_data.register()  # Corregido
-    apply_settings.register()  # Corregido
+    modules = [
+        add_quadblock_triblock,
+        align_vertices,
+        assets_browser,
+        fly_mode,
+        move_objects,
+        ps1_material_config,
+        relative_track,
+        render_menu,
+        snap_vertex_to_closest,
+        vertex_lighting,
+        extrude_separated_objects,
+        Find_invalid_data,
+        apply_settings,
+    ]
+    
+    for module in modules:
+        # Verificar si el módulo tiene una función de registro antes de llamarla
+        if hasattr(module, 'register'):
+            try:
+                module.register()
+            except Exception as e:
+                print(f"Error registrando módulo {module.__name__}: {e}")
 
 def unregister():
     # Desregistrar todos los módulos
-    add_quadblock_triblock.unregister()
-    align_vertices.unregister()
-    assets_browser.unregister()
-    fly_mode.unregister()
-    move_objects.unregister()
-    ps1_material_config.unregister()
-    relative_track.unregister()
-    render_menu.unregister()
-    snap_vertex_to_closest.unregister()
-    vertex_lighting.unregister()
-    extrude_separated_objects.unregister()  # Corregido
-    Find_invalid_data.unregister()  # Corregido
-    apply_settings.unregister()  # Corregido
+    modules = [
+        add_quadblock_triblock,
+        align_vertices,
+        assets_browser,
+        fly_mode,
+        move_objects,
+        ps1_material_config,
+        relative_track,
+        render_menu,
+        snap_vertex_to_closest,
+        vertex_lighting,
+        extrude_separated_objects,
+        Find_invalid_data,
+        apply_settings,
+    ]
+    
+    for module in modules:
+        # Verificar si el módulo tiene una función de desregistro antes de llamarla
+        if hasattr(module, 'unregister'):
+            try:
+                module.unregister()
+            except Exception as e:
+                print(f"Error desregistrando módulo {module.__name__}: {e}")
 
 if __name__ == "__main__":
     register()
