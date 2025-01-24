@@ -135,8 +135,13 @@ def register():
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.find_option
-    del bpy.types.Scene.find_executed
+
+    # Eliminar propiedades personalizadas para evitar conflictos
+    if "find_option" in bpy.types.Scene.bl_rna.properties:
+        del bpy.types.Scene.find_option
+    if "find_executed" in bpy.types.Scene.bl_rna.properties:
+        del bpy.types.Scene.find_executed
 
 if __name__ == "__main__":
     register()
+
