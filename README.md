@@ -12,4 +12,3 @@ RaceTrackBuilder is an intuitive Blender tool designed specifically for beginner
 + Find invalid geometry in seconds.
 + Panel to apply settings (add collection, apply modifiers, Join, separate by loose parts or materials).
   
-https://discord.com/invite/KyxMN6tH8r
