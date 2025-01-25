@@ -174,7 +174,7 @@ class DuplicateObjectsOperator(bpy.types.Operator):
     direction: bpy.props.StringProperty()
 
     def execute(self, context):
-        duplicate_objects(context, self.direction, 20.0, 20.0, 1.0)
+        duplicate_objects(context, self.direction, 12.0, 12.0, 1.0)
         return {'FINISHED'}
 
 # Operators to mirror objects
@@ -274,8 +274,8 @@ class MoveObjectsPanel(bpy.types.Panel):
 
 # Operator properties
 class MoveObjectsSettings(bpy.types.PropertyGroup):
-    value_x: bpy.props.FloatProperty(name="Value X", default=20.0, min=-100.0, max=100.0)
-    value_y: bpy.props.FloatProperty(name="Value Y", default=20.0, min=-100.0, max=100.0)
+    value_x: bpy.props.FloatProperty(name="Value X", default=12.0, min=-100.0, max=100.0)
+    value_y: bpy.props.FloatProperty(name="Value Y", default=12.0, min=-100.0, max=100.0)
     value_z: bpy.props.FloatProperty(name="Value Z", default=1.0, min=-100.0, max=100.0)
 
 def register():
