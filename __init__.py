@@ -24,6 +24,7 @@ from . import vertex_lighting
 from . import extrude_separated_objects
 from . import Find_invalid_data
 from . import apply_settings
+from . import simple_track
 
 def register():
     # Registrar todos los módulos
@@ -41,6 +42,7 @@ def register():
         extrude_separated_objects,
         Find_invalid_data,
         apply_settings,
+        simple_track,
     ]
     
     for module in modules:
@@ -67,6 +69,7 @@ def unregister():
         extrude_separated_objects,
         Find_invalid_data,
         apply_settings,
+        simple_track,
     ]
     
     for module in modules:
