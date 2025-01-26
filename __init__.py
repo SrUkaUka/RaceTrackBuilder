@@ -4,7 +4,7 @@ bl_info = {
     "category": "Object",
     "author": "Sir Uka",
     "version": (1, 0),
-    "description": "A set of tools for building race tracks",
+    "description": "A set of tools for building race tracks based on CTR limitations",
     "support": "COMMUNITY",
 }
 
@@ -12,37 +12,37 @@ import bpy
 
 # Importar cada uno de los scripts de herramientas
 from . import add_quadblock_triblock
+from . import extrude_separated_objects
+from . import snap_vertex_to_closest
 from . import align_vertices
-from . import assets_browser
 from . import fly_mode
 from . import move_objects
-from . import ps1_material_config
-from . import relative_track
-from . import render_menu
-from . import snap_vertex_to_closest
-from . import vertex_lighting
-from . import extrude_separated_objects
-from . import Find_invalid_data
-from . import apply_settings
+from . import assets_browser
 from . import simple_track
+from . import relative_track
+from . import apply_settings
+from . import ps1_material_config
+from . import vertex_lighting
+from . import render_menu
+from . import Find_invalid_data
 
 def register():
     # Registrar todos los módulos
     modules = [
         add_quadblock_triblock,
+        extrude_separated_objects,
+        snap_vertex_to_closest,
         align_vertices,
-        assets_browser,
         fly_mode,
         move_objects,
-        ps1_material_config,
-        relative_track,
-        render_menu,
-        snap_vertex_to_closest,
-        vertex_lighting,
-        extrude_separated_objects,
-        Find_invalid_data,
-        apply_settings,
+        assets_browser,
         simple_track,
+        relative_track,
+        apply_settings,
+        ps1_material_config,
+        vertex_lighting,
+        render_menu,
+        Find_invalid_data,
     ]
     
     for module in modules:
@@ -57,19 +57,19 @@ def unregister():
     # Desregistrar todos los módulos
     modules = [
         add_quadblock_triblock,
+        extrude_separated_objects,
+        snap_vertex_to_closest,
         align_vertices,
-        assets_browser,
         fly_mode,
         move_objects,
-        ps1_material_config,
-        relative_track,
-        render_menu,
-        snap_vertex_to_closest,
-        vertex_lighting,
-        extrude_separated_objects,
-        Find_invalid_data,
-        apply_settings,
+        assets_browser,
         simple_track,
+        relative_track,
+        apply_settings,
+        ps1_material_config,
+        vertex_lighting,
+        render_menu,
+        Find_invalid_data,
     ]
     
     for module in modules:
