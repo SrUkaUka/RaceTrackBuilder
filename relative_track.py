@@ -171,7 +171,7 @@ class SimpleSpiralPanel(bpy.types.Panel):
     bl_idname = "OBJECT_PT_spiral_circle_path"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Relative Track'
+    bl_category = 'Relative Shape'
     
     def draw(self, context):
         layout = self.layout
