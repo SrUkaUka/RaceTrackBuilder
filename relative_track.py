@@ -12,7 +12,7 @@ class SimpleSpiralOperator(bpy.types.Operator):
         turns = context.scene.spiral_turns
         
         radius = 100  # Fixed radius for larger size
-        height = 200  # Fixed height for larger size
+        height = context.scene.spiral_height  # Usamos la altura seleccionada
         sections = subdivisions
         
         verts = []
@@ -34,7 +34,7 @@ class SimpleSpiralOperator(bpy.types.Operator):
         curve_obj = bpy.data.objects.new('Spiral', curve_data)
         context.scene.collection.objects.link(curve_obj)
         
-        self.report({'INFO'}, f"Spiral created with {turns} turns.")
+        self.report({'INFO'}, f"Spiral created with {turns} turns and height {height}.")
         return {'FINISHED'}
 
 # Operator to create a Bezier circle curve
@@ -64,7 +64,7 @@ class SimplePathOperator(bpy.types.Operator):
 
     def execute(self, context):
         bpy.ops.curve.primitive_nurbs_path_add(
-            radius=100,  # Fixed radius for larger size
+            radius=30,  # Fixed radius for larger size
             location=(0, 0, 0), 
             align='WORLD'
         )
@@ -136,7 +136,6 @@ class AddModifiersOperator(bpy.types.Operator):
                 if selected.type == 'CURVE':
                     curve_object = selected
                     break
-            
             if not curve_object:
                 curve_object = context.view_layer.objects.active
             
@@ -165,6 +164,32 @@ class JoinObjectsOperator(bpy.types.Operator):
         self.report({'INFO'}, "Objects joined successfully.")
         return {'FINISHED'}
 
+# New Operator to insert quadblock planes
+class InsertQuadblockOperator(bpy.types.Operator):
+    bl_idname = "mesh.insert_quadblock"
+    bl_label = "Insert Quadblock Planes"
+    bl_description = "Inserts planes parallel to each other based on the width value"
+
+    def execute(self, context):
+        width = context.scene.width  # Number of planes to create
+        
+        distance = 12  # Size of each plane, adjust as needed
+        for i in range(width):
+            # Calculate position for each plane
+            position_y = (i - (width - 1) / 2) * distance  # Ensures planes are centered
+            
+            # Create a plane
+            bpy.ops.mesh.primitive_plane_add(size=12, location=(0, position_y, 0))  # Adjust to Y axis
+            plane = context.active_object
+            
+            # Subdivide the plane
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.subdivide(number_cuts=1)  # You can adjust number of subdivisions here
+            bpy.ops.object.mode_set(mode='OBJECT')
+        
+        self.report({'INFO'}, f"{width} quadblock planes inserted.")
+        return {'FINISHED'}
+
 # Panel for the interface
 class SimpleSpiralPanel(bpy.types.Panel):
     bl_label = "Create Spiral, Circle, and NURBS Path Curve"
@@ -178,6 +203,13 @@ class SimpleSpiralPanel(bpy.types.Panel):
         
         layout.prop(context.scene, "nurbs_path_subdivisions")
         layout.prop(context.scene, "spiral_turns")
+        
+        # Agregar la propiedad de altura
+        layout.prop(context.scene, "spiral_height")  # Nueva propiedad de altura
+        
+        # Añadir el campo de "width"
+        layout.prop(context.scene, "width")
+        
         layout.operator("curve.adjust_resolution", text="Apply Subdivision to Curve")
         
         layout.separator()
@@ -190,6 +222,10 @@ class SimpleSpiralPanel(bpy.types.Panel):
         
         layout.operator("object.add_modifiers")
         layout.operator("object.join_objects")
+        
+        layout.separator()
+        
+        layout.operator("mesh.insert_quadblock", text="Insert Quadblock Planes")
 
 # Registering the classes and properties
 def register():
@@ -200,11 +236,12 @@ def register():
     bpy.utils.register_class(AddModifiersOperator)
     bpy.utils.register_class(JoinObjectsOperator)
     bpy.utils.register_class(SimpleSpiralPanel)
+    bpy.utils.register_class(InsertQuadblockOperator)
     
     bpy.types.Scene.nurbs_path_subdivisions = bpy.props.IntProperty(
         name="Subdivisions",
         description="Number of subdivisions to adjust curve subdivision",
-        default=12,
+        default=5,
         min=2,
         max=64
     )
@@ -212,9 +249,26 @@ def register():
     bpy.types.Scene.spiral_turns = bpy.props.IntProperty(
         name="Turns",
         description="Number of turns for the spiral",
-        default=5,
+        default=10,
         min=1,
         max=100
+    )
+    
+    bpy.types.Scene.width = bpy.props.IntProperty(
+        name="Width",
+        description="Number of planes to insert",
+        default=5,  # Default number of planes
+        min=1,
+        max=100
+    )
+    
+    # Registrar la nueva propiedad de altura del espiral
+    bpy.types.Scene.spiral_height = bpy.props.FloatProperty(
+        name="Height",
+        description="Altura total del espiral",
+        default=100,  # Valor predeterminado
+        min=1,  # Aseguramos que la altura no sea menor que 1
+        max=1000  # Aseguramos que la altura no sea mayor que 1000
     )
 
 def unregister():
@@ -225,9 +279,12 @@ def unregister():
     bpy.utils.unregister_class(AddModifiersOperator)
     bpy.utils.unregister_class(JoinObjectsOperator)
     bpy.utils.unregister_class(SimpleSpiralPanel)
+    bpy.utils.unregister_class(InsertQuadblockOperator)
     
     del bpy.types.Scene.nurbs_path_subdivisions
     del bpy.types.Scene.spiral_turns
+    del bpy.types.Scene.width
+    del bpy.types.Scene.spiral_height  # Eliminar la propiedad de altura
 
 if __name__ == "__main__":
     register()
