@@ -93,10 +93,11 @@ def setup_materials():
     # Show warnings if there are objects without image textures
     if no_image_objects:
         self_report = "\n".join(no_image_objects)
-        self.report({'WARNING'}, f"Objects without image texture: {self_report}")
+        # Use context to display the warning
+        bpy.context.window_manager.popup_menu(lambda self, context: self.layout.label(text=f"Objects without image texture: {self_report}"), title="Warning", icon='ERROR')
 
-    # Switch to rendered mode
-    bpy.context.space_data.shading.type = 'RENDERED'
+    # Switch to rendered mode (commented out to avoid changing screen)
+    # bpy.context.space_data.shading.type = 'RENDERED'  # This line is commented to avoid opening a new screen
 
 def deactivate_ps1_render():
     for obj in bpy.context.scene.objects:
