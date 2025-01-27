@@ -32,8 +32,8 @@ def activate_walk_mode(context):
     # Configure Walk mode properties
     walk_settings = context.preferences.inputs.walk_navigation
     walk_settings.use_gravity = context.scene.gravity_enabled
-    walk_settings.walk_speed = 20.0 if context.scene.accelerate_enabled else 5.0  # Increased base speed
-    walk_settings.walk_speed_factor = 10.0 if context.scene.accelerate_enabled else 2.0  # High acceleration factor
+    walk_settings.walk_speed = 50.0 if context.scene.accelerate_enabled else 35.0  # Increased base speed
+    walk_settings.walk_speed_factor = 50.0 if context.scene.accelerate_enabled else 35.0  # High acceleration factor
     bpy.ops.view3d.walk('INVOKE_DEFAULT')
     
     # Hide panels and overlays automatically when activating Walk Mode
@@ -56,8 +56,8 @@ def activate_fly_mode(context):
     """
     # Configure Fly mode properties
     fly_settings = context.preferences.inputs.walk_navigation
-    fly_settings.walk_speed = 20.0 if context.scene.accelerate_enabled else 5.0  # Increased base speed
-    fly_settings.walk_speed_factor = 10.0 if context.scene.accelerate_enabled else 2.0  # High acceleration factor
+    fly_settings.walk_speed = 15.0 if context.scene.accelerate_enabled else 5.0  # Increased base speed
+    fly_settings.walk_speed_factor = 15.0 if context.scene.accelerate_enabled else 5.0  # High acceleration factor
     bpy.ops.view3d.fly('INVOKE_DEFAULT')
     
     # Hide panels and overlays automatically when activating Fly Mode
