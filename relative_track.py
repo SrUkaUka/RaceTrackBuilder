@@ -164,10 +164,10 @@ class JoinObjectsOperator(bpy.types.Operator):
         self.report({'INFO'}, "Objects joined successfully.")
         return {'FINISHED'}
 
-# New Operator to insert quadblock planes
-class InsertQuadblockOperator(bpy.types.Operator):
-    bl_idname = "mesh.insert_quadblock"
-    bl_label = "Insert Quadblock Planes"
+# New Operator to insert quadblock planes based on width
+class QuadblockWidthOperator(bpy.types.Operator):
+    bl_idname = "mesh.quadblock_width"
+    bl_label = "Quadblock Width Planes"
     bl_description = "Inserts planes parallel to each other based on the width value"
 
     def execute(self, context):
@@ -187,7 +187,7 @@ class InsertQuadblockOperator(bpy.types.Operator):
             bpy.ops.mesh.subdivide(number_cuts=1)  # You can adjust number of subdivisions here
             bpy.ops.object.mode_set(mode='OBJECT')
         
-        self.report({'INFO'}, f"{width} quadblock planes inserted.")
+        self.report({'INFO'}, f"{width} quadblock width planes inserted.")
         return {'FINISHED'}
 
 # Panel for the interface
@@ -225,7 +225,7 @@ class SimpleSpiralPanel(bpy.types.Panel):
         
         layout.separator()
         
-        layout.operator("mesh.insert_quadblock", text="Insert Quadblock Planes")
+        layout.operator("mesh.quadblock_width", text="Quadblock Width")
 
 # Registering the classes and properties
 def register():
@@ -236,7 +236,7 @@ def register():
     bpy.utils.register_class(AddModifiersOperator)
     bpy.utils.register_class(JoinObjectsOperator)
     bpy.utils.register_class(SimpleSpiralPanel)
-    bpy.utils.register_class(InsertQuadblockOperator)
+    bpy.utils.register_class(QuadblockWidthOperator)
     
     bpy.types.Scene.nurbs_path_subdivisions = bpy.props.IntProperty(
         name="Subdivisions",
@@ -279,7 +279,7 @@ def unregister():
     bpy.utils.unregister_class(AddModifiersOperator)
     bpy.utils.unregister_class(JoinObjectsOperator)
     bpy.utils.unregister_class(SimpleSpiralPanel)
-    bpy.utils.unregister_class(InsertQuadblockOperator)
+    bpy.utils.unregister_class(QuadblockWidthOperator)
     
     del bpy.types.Scene.nurbs_path_subdivisions
     del bpy.types.Scene.spiral_turns
