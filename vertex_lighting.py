@@ -60,10 +60,51 @@ def bake_vertex_lighting():
     bpy.ops.object.bake(type='COMBINED')
     print("Bake completed.")
 
+# Función para desconectar el nodo Image Texture
+def disconnect_image_texture(self, context):
+    # Obtener el material activo del objeto seleccionado
+    obj = bpy.context.active_object
+    if obj and obj.active_material:
+        node_tree = obj.active_material.node_tree
+        image_texture_node = node_tree.nodes.get("Image Texture")
+        
+        if image_texture_node:
+            # Recorremos los enlaces y desconectamos cualquier enlace de salida del nodo de imagen
+            for link in node_tree.links:
+                if link.from_node == image_texture_node:
+                    node_tree.links.remove(link)
+            self.report({'INFO'}, "Image texture node disconnected")
+        else:
+            self.report({'WARNING'}, "Image texture node not found.")
+    else:
+        self.report({'WARNING'}, "Selected object does not have a material.")
+
+# Función para conectar el nodo Image Texture a Principled BSDF
+def connect_image_texture(self, context):
+    # Obtener el material activo del objeto seleccionado
+    obj = bpy.context.active_object
+    if obj and obj.active_material:
+        node_tree = obj.active_material.node_tree
+        image_texture_node = node_tree.nodes.get("Image Texture")
+        principled_node = node_tree.nodes.get("Principled BSDF")
+        
+        if image_texture_node and principled_node:
+            # Aseguramos que los sockets estén bien definidos
+            image_texture_socket = image_texture_node.outputs["Color"]
+            principled_socket = principled_node.inputs["Base Color"]
+            
+            # Creamos el enlace
+            node_tree.links.new(image_texture_socket, principled_socket)
+            self.report({'INFO'}, "Image Texture connected.")
+        else:
+            self.report({'WARNING'}, "Disable PS1 Render mode first.")
+    else:
+        self.report({'WARNING'}, "Selected object does not have a material.")
+
 class VertexLightingPanel(bpy.types.Panel):
-    """Custom panel for adding and baking lighting in Vertex Colors"""
-    bl_label = "Vertex Lighting"
-    bl_idname = "VIEW3D_PT_vertex_lighting"
+    """Custom panel for adding and baking lighting in Vertex Colors and connecting/disconnecting image textures"""
+    bl_label = "Vertex Lighting & Texture Nodes"
+    bl_idname = "VIEW3D_PT_vertex_lighting_and_texture"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Vertex Lighting'
@@ -71,14 +112,19 @@ class VertexLightingPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        # Create an enum to select the light type
+        # Section for Vertex Lighting
+        layout.label(text="Vertex Lighting:")
         layout.prop(context.scene, "light_type", text="Light Type")
 
-        # Button to add the color attribute and the sun light
         layout.operator("object.add_vertex_lighting", text="Add Vertex Lighting")
-
-        # Button to bake the lighting
         layout.operator("object.bake_vertex_lighting", text="Bake Lighting")
+
+        layout.separator()
+
+        # Section for Texture Node Control
+        layout.label(text="Texture Node Control:")
+        layout.operator("node.disconnect_image_texture", text="Texture Off")
+        layout.operator("node.connect_image_texture", text="Texture On")
 
 class AddVertexLightingOperator(bpy.types.Operator):
     """Operator to add the color attribute and sun light"""
@@ -99,11 +145,33 @@ class BakeVertexLightingOperator(bpy.types.Operator):
         bake_vertex_lighting()
         return {'FINISHED'}
 
+# Operador para desconectar
+class DisconnectImageTextureOperator(bpy.types.Operator):
+    """Operator to disable textures temoporaly"""
+    bl_idname = "node.disconnect_image_texture"
+    bl_label = "Desconectar Imagen"
+    
+    def execute(self, context):
+        disconnect_image_texture(self, context)
+        return {'FINISHED'}
+
+# Operador para conectar
+class ConnectImageTextureOperator(bpy.types.Operator):
+    """Operator to enable textures"""
+    bl_idname = "node.connect_image_texture"
+    bl_label = "Conectar Imagen"
+    
+    def execute(self, context):
+        connect_image_texture(self, context)
+        return {'FINISHED'}
+
 # Register the classes
 def register():
     bpy.utils.register_class(VertexLightingPanel)
     bpy.utils.register_class(AddVertexLightingOperator)
     bpy.utils.register_class(BakeVertexLightingOperator)
+    bpy.utils.register_class(DisconnectImageTextureOperator)
+    bpy.utils.register_class(ConnectImageTextureOperator)
 
     # Register the enum to choose the light type
     bpy.types.Scene.light_type = bpy.props.EnumProperty(
@@ -120,6 +188,8 @@ def unregister():
     bpy.utils.unregister_class(VertexLightingPanel)
     bpy.utils.unregister_class(AddVertexLightingOperator)
     bpy.utils.unregister_class(BakeVertexLightingOperator)
+    bpy.utils.unregister_class(DisconnectImageTextureOperator)
+    bpy.utils.unregister_class(ConnectImageTextureOperator)
 
     # Remove the enum property when unregistering the addon
     del bpy.types.Scene.light_type
