@@ -34,7 +34,7 @@ def create_multiple_tiles(self, context, tile_count):
         return {'CANCELLED'}
 
     # Tile coordinates
-    coordinates = [(0, -5, 0), (0, 5, 0), (0, 15, 0), (0, -15, 0), (0, -25, 0), (0, 25, 0)]
+    coordinates = [(0, -6, 0), (0, 6, 0), (0, 18, 0), (0, -18, 0), (0, -30, 0), (0, 30, 0)]
     
     # Create the appropriate number of tiles based on tile_count parameter
     created_objects = []
