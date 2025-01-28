@@ -197,7 +197,7 @@ class SimplePanel(bpy.types.Panel):
     bl_idname = "PT_CreateRoads"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "Track Builder"
+    bl_category = "Simple Road"
 
     def draw(self, context):
         layout = self.layout
