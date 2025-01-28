@@ -33,15 +33,15 @@ def create_multiple_tiles(self, context, tile_count):
         self.report({'WARNING'}, "There's more than one road")
         return {'CANCELLED'}
 
-    # Tile coordinates (adjusted for 12 meters)
-    coordinates = [(0, -6, 0), (0, 6, 0), (0, 18, 0), (0, -18, 0), (0, -30, 0), (0, 30, 0)]
+    # Tile coordinates
+    coordinates = [(0, -5, 0), (0, 5, 0), (0, 15, 0), (0, -15, 0), (0, -25, 0), (0, 25, 0)]
     
     # Create the appropriate number of tiles based on tile_count parameter
     created_objects = []
     for i in range(tile_count):
         bpy.ops.mesh.primitive_plane_add(location=coordinates[i])
         obj = bpy.context.active_object
-        obj.scale = (6, 6, 0)  # Set scale to make each tile 12m in size
+        obj.scale = (6, 6, 6)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.subdivide(number_cuts=1)
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -59,14 +59,11 @@ def create_multiple_tiles(self, context, tile_count):
 
         array_modifier = obj.modifiers.new(name="Array", type='ARRAY')
         array_modifier.count = 5
-        array_modifier.relative_offset_displace[0] = 0.5  # Adjust this to keep tiles close together
+        array_modifier.relative_offset_displace[0] = 1
 
         curve_modifier = obj.modifiers.new(name="Curve", type='CURVE')
         curve_modifier.deform_axis = 'POS_X'
         curve_modifier.object = road_objects[0]
-
-        # Apply scale to avoid issues with modifiers
-        bpy.ops.object.transform_apply(scale=True)
 
         # Add object to the list
         created_objects.append(obj)
@@ -200,26 +197,33 @@ class SimplePanel(bpy.types.Panel):
     bl_idname = "PT_CreateRoads"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "Simple"
+    bl_category = "Track Builder"
 
     def draw(self, context):
         layout = self.layout
-        row = layout.row()  # Add a row to align buttons horizontally
-        row.operator("mesh.create_1_tiles", text="1 Tile")
-        row.operator("mesh.create_2_tiles", text="2 Tiles")
-        row.operator("mesh.create_3_tiles", text="3 Tiles")
 
-        row = layout.row()  # Another row for 4, 5, and 6
-        row.operator("mesh.create_4_tiles", text="4 Tiles")
-        row.operator("mesh.create_5_tiles", text="5 Tiles")
-        row.operator("mesh.create_6_tiles", text="6 Tiles")
+        # Roads section
+        layout.label(text="Generate Roads:", icon='CURVE_BEZCURVE')
+        col = layout.column(align=True)
+        col.operator("mesh.create_long_road", text="Long Road")
+        col.operator("mesh.create_med_road", text="Medium Road")
+        col.operator("mesh.create_short_road", text="Short Road")
 
-        row = layout.row()  # Add a new row for road generation
-        row.operator("mesh.create_long_road", text="Long Road")
-        row.operator("mesh.create_med_road", text="Med Road")
-        row.operator("mesh.create_short_road", text="Short Road")
+        # Tiles section
+        layout.label(text="Generate Tiles:", icon='MESH_GRID')
+        grid = layout.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=True, align=True)
+        grid.operator("mesh.create_1_tiles", text="1 Tile")
+        grid.operator("mesh.create_2_tiles", text="2 Tiles")
+        grid.operator("mesh.create_3_tiles", text="3 Tiles")
+        grid.operator("mesh.create_4_tiles", text="4 Tiles")
+        grid.operator("mesh.create_5_tiles", text="5 Tiles")
+        grid.operator("mesh.create_6_tiles", text="6 Tiles")
 
-        layout.operator("mesh.finish_process", text="Finish")
+        # Finalization section
+        layout.label(text="Finalization:", icon='CHECKMARK')
+        col = layout.column(align=True)
+        col.operator("mesh.finish_process", text="Finalize")
+
 
 # Register and unregister the classes
 def register():
@@ -237,9 +241,10 @@ def register():
     bpy.utils.register_class(SimplePanel)
 
 def unregister():
-    bpy.utils.unregister_class(CreateLongRoadOperator)
-    bpy.utils.unregister_class(CreateMedRoadOperator)
+    bpy.utils.unregister_class(SimplePanel)
     bpy.utils.unregister_class(CreateShortRoadOperator)
+    bpy.utils.unregister_class(CreateMedRoadOperator)
+    bpy.utils.unregister_class(CreateLongRoadOperator)
     bpy.utils.unregister_class(CreateTileOperator)
     bpy.utils.unregister_class(Create1TilesOperator)
     bpy.utils.unregister_class(Create2TilesOperator)
@@ -248,7 +253,6 @@ def unregister():
     bpy.utils.unregister_class(Create5TilesOperator)
     bpy.utils.unregister_class(Create6TilesOperator)
     bpy.utils.unregister_class(FinishProcessOperator)
-    bpy.utils.unregister_class(SimplePanel)
 
 if __name__ == "__main__":
     register()
