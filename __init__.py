@@ -27,6 +27,7 @@ from . import vertex_lighting
 from . import render_menu
 from . import Find_invalid_data
 from . import basic_uv_tools
+from . import skybox_gradient
 
 def register():
     # Registrar todos los módulos
@@ -47,6 +48,7 @@ def register():
         render_menu,
         Find_invalid_data,
         basic_uv_tools,
+        skybox_gradient,
     ]
     
     for module in modules:
@@ -76,6 +78,7 @@ def unregister():
         render_menu,
         Find_invalid_data,
         basic_uv_tools,
+        skybox_gradient,
     ]
     
     for module in modules:
