@@ -6,7 +6,7 @@ class GeometryToolsPanel(bpy.types.Panel):
     bl_idname = "PT_GEOMETRY_TOOLS"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "Find"  # Changed to a new tab "Finish"
+    bl_category = "Find Geometry"
 
     def draw(self, context):
         layout = self.layout
@@ -14,14 +14,15 @@ class GeometryToolsPanel(bpy.types.Panel):
 
         # Dropdown menu for FIND button
         col.label(text="Find Options:")
-        col.prop(context.scene, "find_option", text="")
-        col.operator("geometry.find_objects", text="Find")
+        if hasattr(context.scene, "find_option"):  # Verifica que la propiedad exista
+            col.prop(context.scene, "find_option", text="")
+        else:
+            col.label(text="Error: Property not found.", icon="ERROR")
 
-        # Invalid geometry button
+        # Buttons
+        col.operator("geometry.find_objects", text="Find")
         col.separator()
         col.operator("geometry.find_invalid", text="Find Invalid Geometry")
-
-        # Reset Name button
         col.separator()
         col.operator("geometry.reset_name", text="Reset Name")
 
@@ -37,6 +38,7 @@ class OBJECT_OT_FindObjects(bpy.types.Operator):
         for obj in bpy.data.objects:
             if obj.type == 'MESH':
                 vertex_count = len(obj.data.vertices)
+                edge_count = len(obj.data.edges)  # Contamos las aristas
 
                 # Check if the object has NGons (faces with more than 4 vertices)
                 has_ngons = False
@@ -54,10 +56,10 @@ class OBJECT_OT_FindObjects(bpy.types.Operator):
                 if has_ngons:
                     continue
 
-                # Assign suffix based on the find option
-                if find_option == 'TRIBLOCK' and vertex_count == 6:
+                # Asignar sufijos según las opciones de búsqueda, también comprobando el número de aristas
+                if find_option == 'TRIBLOCK' and vertex_count == 6 and edge_count == 9:  # 6 vértices y 9 aristas
                     obj.name = f"{obj.name}_triblock"
-                elif find_option == 'QUADBLOCK' and vertex_count == 9:
+                elif find_option == 'QUADBLOCK' and vertex_count == 9 and edge_count == 12:  # 9 vértices y 12 aristas
                     obj.name = f"{obj.name}_quadblock"
 
         return {'FINISHED'}
@@ -108,27 +110,18 @@ class OBJECT_OT_ResetName(bpy.types.Operator):
         self.report({'INFO'}, "Names reset.")
         return {'FINISHED'}
 
-# Dropdown property for find options
-bpy.types.Scene.find_option = bpy.props.EnumProperty(
-    name="Find Option",
-    items=[
-        ('TRIBLOCK', "Triblock", "Add suffix _triblock to objects with 6 vertices"),
-        ('QUADBLOCK', "Quadblock", "Add suffix _quadblock to objects with 9 vertices"),
-    ],
-    default='TRIBLOCK'
-)
-
-# Property to track if the Find button was executed
-bpy.types.Scene.find_executed = bpy.props.BoolProperty(default=False)
-
-classes = [
-    GeometryToolsPanel,
-    OBJECT_OT_FindObjects,
-    OBJECT_OT_FindInvalidGeometry,
-    OBJECT_OT_ResetName
-]
-
+# Registro de la propiedad 'find_option' antes de acceder a ella
 def register():
+    bpy.types.Scene.find_option = bpy.props.EnumProperty(
+        name="Find Option",
+        items=[
+            ('TRIBLOCK', "Triblock", "Add suffix _triblock to objects with 6 vertices and exactly 9 edges"),
+            ('QUADBLOCK', "Quadblock", "Add suffix _quadblock to objects with 9 vertices and exactly 12 edges"),
+        ],
+        default='TRIBLOCK'
+    )
+    bpy.types.Scene.find_executed = bpy.props.BoolProperty(default=False)
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -136,12 +129,18 @@ def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
 
-    # Eliminar propiedades personalizadas para evitar conflictos
     if "find_option" in bpy.types.Scene.bl_rna.properties:
         del bpy.types.Scene.find_option
     if "find_executed" in bpy.types.Scene.bl_rna.properties:
         del bpy.types.Scene.find_executed
 
+# Aseguramos que las clases están registradas
+classes = [
+    GeometryToolsPanel,
+    OBJECT_OT_FindObjects,
+    OBJECT_OT_FindInvalidGeometry,
+    OBJECT_OT_ResetName
+]
+
 if __name__ == "__main__":
     register()
-
