@@ -17,6 +17,7 @@ from . import snap_vertex_to_closest
 from . import proportional_editing
 from . import align_vertices
 from . import fly_mode
+from . import remove_garbage
 from . import move_objects
 from . import assets_browser
 from . import simple_track
@@ -38,6 +39,7 @@ def register():
         proportional_editing,
         align_vertices,
         fly_mode,
+        remove_garbage,
         move_objects,
         assets_browser,
         simple_track,
@@ -68,6 +70,7 @@ def unregister():
         proportional_editing,
         align_vertices,
         fly_mode,
+        remove_garbage,
         move_objects,
         assets_browser,
         simple_track,
