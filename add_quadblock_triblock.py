@@ -1,13 +1,63 @@
 import bpy
 import bmesh
 from mathutils import Vector
-import math
 
-# Function to order vertices in a counterclockwise direction
-def order_vertices(vertices):
-    center = sum(vertices, Vector()) / len(vertices)
-    sorted_verts = sorted(vertices, key=lambda v: math.atan2(v.y - center.y, v.x - center.x))
-    return sorted_verts
+# Function to extrude selected vertices without moving them
+def extrude_vertices(obj):
+    # Switch to Edit mode
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    # Select all vertices
+    bpy.ops.mesh.select_all(action='SELECT')
+
+    # Extrude vertices but keep them in the same location
+    bpy.ops.mesh.extrude_region_move(TRANSFORM_OT_translate={"value": (0, 0, 0)})
+
+    # Switch back to Object mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+# Function to separate the extruded vertices by selection
+def separate_by_selection(obj):
+    # Switch to Edit mode
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    # Select all vertices
+    bpy.ops.mesh.select_all(action='SELECT')
+
+    # Separate by selection
+    bpy.ops.mesh.separate(type='SELECTED')
+
+    # Switch back to Object mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+# Function to join two objects together
+def join_objects(obj1, obj2):
+    # Set the active object
+    bpy.context.view_layer.objects.active = obj1
+
+    # Select both objects
+    obj1.select_set(True)
+    obj2.select_set(True)
+
+    # Join the objects
+    bpy.ops.object.join()
+
+# Function to create a face and subdivide the geometry
+def fill_and_subdivide(obj):
+    # Switch to Edit mode
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    # Select all vertices
+    bpy.ops.mesh.select_all(action='SELECT')
+
+    # Fill the selected vertices (creating a face)
+    bpy.ops.mesh.face_make_planar()
+
+    # Switch back to Object mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    # Subdivide the object
+    subdivide_new_object(obj)
 
 # Function to subdivide only the newly created object
 def subdivide_new_object(new_obj):
@@ -28,72 +78,6 @@ def subdivide_new_object(new_obj):
     bpy.ops.mesh.subdivide(number_cuts=1)  # Subdivide
     bpy.ops.object.mode_set(mode='OBJECT')  # Return to Object mode
 
-# Function to create a plane with 4 vertices (quadblock)
-def insert_quadblock(context, vertices):
-    """
-    Create a quad (4-sided polygon) based on the selected vertices.
-
-    Parameters:
-        context (bpy.context): Blender context.
-        vertices (list of Vector): List of 4 vertices to define the quad.
-
-    Returns:
-        obj (bpy.types.Object): The newly created quad object.
-    """
-    if len(vertices) != 4:
-        return {'CANCELLED'}
-
-    ordered_verts = order_vertices(vertices)
-    mesh = bpy.data.meshes.new(name="QuadBlock")
-    obj = bpy.data.objects.new(name="QuadBlockObject", object_data=mesh)
-
-    context.collection.objects.link(obj)  # Add to the active collection
-
-    bm = bmesh.new()
-    vert_dict = {idx: bm.verts.new(vert) for idx, vert in enumerate(ordered_verts)}
-    bm.verts.ensure_lookup_table()
-    bm.faces.new([vert_dict[i] for i in range(4)])  # Create the face
-    bm.to_mesh(mesh)
-    bm.free()
-
-    # Subdivide the created object
-    subdivide_new_object(obj)
-
-    return obj
-
-# Function to create a triangle with 3 vertices (triblock)
-def insert_triblock(context, vertices):
-    """
-    Create a triangle (3-sided polygon) based on the selected vertices.
-
-    Parameters:
-        context (bpy.context): Blender context.
-        vertices (list of Vector): List of 3 vertices to define the triangle.
-
-    Returns:
-        obj (bpy.types.Object): The newly created triangle object.
-    """
-    if len(vertices) != 3:
-        return {'CANCELLED'}
-
-    ordered_verts = order_vertices(vertices)
-    mesh = bpy.data.meshes.new(name="TriBlock")
-    obj = bpy.data.objects.new(name="TriBlockObject", object_data=mesh)
-
-    context.collection.objects.link(obj)  # Add to the active collection
-
-    bm = bmesh.new()
-    vert_dict = {idx: bm.verts.new(vert) for idx, vert in enumerate(ordered_verts)}
-    bm.verts.ensure_lookup_table()
-    bm.faces.new([vert_dict[i] for i in range(3)])  # Create the face
-    bm.to_mesh(mesh)
-    bm.free()
-
-    # Subdivide the created object
-    subdivide_new_object(obj)
-
-    return obj
-
 # Function to get the coordinates of the selected vertices
 def get_selected_vertices():
     """
@@ -109,38 +93,39 @@ def get_selected_vertices():
             selected_verts.extend([obj.matrix_world @ v.co for v in bm.verts if v.select])
     return selected_verts
 
-# Operator for "Insert Quadblock"
-class OBJECT_OT_InsertQuadblock(bpy.types.Operator):
+# Operator for the extrusion process
+class OBJECT_OT_ExtrudeAndSubdivide(bpy.types.Operator):
     """
-    Insert a quad quadblock by selecting 4 vertices.
+    Extrude the selected vertices, separate them, join the objects, and create a face with subdivision.
     """
-    bl_idname = "mesh.insert_quadblock"
-    bl_label = "Insert Quadblock"
+    bl_idname = "mesh.extrude_and_subdivide"
+    bl_label = "Extrude and Subdivide"
 
     def execute(self, context):
+        # Get the selected vertices
         selected_verts = get_selected_vertices()
-        if len(selected_verts) == 4:
-            insert_quadblock(context, selected_verts)
+        
+        # Ensure we have either 3 or 4 selected vertices
+        if len(selected_verts) == 3 or len(selected_verts) == 4:
+            # Extrude the selected vertices
+            extrude_vertices(context.active_object)
+
+            # Separate the extruded vertices
+            separate_by_selection(context.active_object)
+
+            # Get the new objects created after separation
+            obj1 = context.active_object
+            obj2 = bpy.context.view_layer.objects.active
+
+            # Join the two objects together
+            join_objects(obj1, obj2)
+
+            # Create a face and subdivide the geometry
+            fill_and_subdivide(obj1)
+
             return {'FINISHED'}
         else:
-            self.report({'ERROR'}, "Select exactly 4 vertices.")
-            return {'CANCELLED'}
-
-# Operator for "Insert Triblock"
-class OBJECT_OT_InsertTriblock(bpy.types.Operator):
-    """
-    Insert a quad triblock by selecting 3 vertices.
-    """
-    bl_idname = "mesh.insert_triblock"
-    bl_label = "Insert Triblock"
-
-    def execute(self, context):
-        selected_verts = get_selected_vertices()
-        if len(selected_verts) == 3:
-            insert_triblock(context, selected_verts)
-            return {'FINISHED'}
-        else:
-            self.report({'ERROR'}, "Select exactly 3 vertices.")
+            self.report({'ERROR'}, "Select exactly 3 or 4 vertices.")
             return {'CANCELLED'}
 
 # Panel for the buttons in the "Tools" tab
@@ -148,26 +133,23 @@ class VIEW3D_PT_InsertShapesPanel(bpy.types.Panel):
     """
     UI Panel to insert shapes in the 3D Viewport.
     """
-    bl_label = "Insert Shapes"
-    bl_idname = "VIEW3D_PT_insert_shapes"
+    bl_label = "Extrude and Subdivide"
+    bl_idname = "VIEW3D_PT_extrude_subdivide"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Tool'
 
     def draw(self, context):
         layout = self.layout
-        layout.operator("mesh.insert_quadblock")
-        layout.operator("mesh.insert_triblock")
+        layout.operator("mesh.extrude_and_subdivide")
 
 # Register operators and panel
 def register():
-    bpy.utils.register_class(OBJECT_OT_InsertQuadblock)
-    bpy.utils.register_class(OBJECT_OT_InsertTriblock)
+    bpy.utils.register_class(OBJECT_OT_ExtrudeAndSubdivide)
     bpy.utils.register_class(VIEW3D_PT_InsertShapesPanel)
 
 def unregister():
-    bpy.utils.unregister_class(OBJECT_OT_InsertQuadblock)
-    bpy.utils.unregister_class(OBJECT_OT_InsertTriblock)
+    bpy.utils.unregister_class(OBJECT_OT_ExtrudeAndSubdivide)
     bpy.utils.unregister_class(VIEW3D_PT_InsertShapesPanel)
 
 if __name__ == "__main__":
