@@ -1,156 +1,152 @@
 import bpy
 import bmesh
-from mathutils import Vector
 
-# Function to extrude selected vertices without moving them
-def extrude_vertices(obj):
-    # Switch to Edit mode
+def get_new_objects(before_objects):
+    """Devuelve una lista de los nuevos objetos creados tras la separación."""
+    return [obj for obj in bpy.context.scene.objects if obj not in before_objects and obj.type == 'MESH']
+
+def clean_object(obj):
+    """Limpia los vértices y aristas flotantes del objeto."""
+    if obj.type != 'MESH':
+        return
+
+    bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT')
 
-    # Select all vertices
-    bpy.ops.mesh.select_all(action='SELECT')
+    bm = bmesh.from_edit_mesh(obj.data)
 
-    # Extrude vertices but keep them in the same location
-    bpy.ops.mesh.extrude_region_move(TRANSFORM_OT_translate={"value": (0, 0, 0)})
+    # Eliminar aristas sin caras
+    for edge in bm.edges[:]:
+        if len(edge.link_faces) == 0:
+            bm.edges.remove(edge)
 
-    # Switch back to Object mode
+    # Eliminar vértices sin conexiones
+    for vert in bm.verts[:]:
+        if len(vert.link_edges) == 0:
+            bm.verts.remove(vert)
+
+    bmesh.update_edit_mesh(obj.data)
+
     bpy.ops.object.mode_set(mode='OBJECT')
 
-# Function to separate the extruded vertices by selection
-def separate_by_selection(obj):
-    # Switch to Edit mode
-    bpy.ops.object.mode_set(mode='EDIT')
+    # Si el objeto quedó vacío, eliminarlo
+    if len(obj.data.vertices) == 0:
+        bpy.data.objects.remove(obj, do_unlink=True)
 
-    # Select all vertices
-    bpy.ops.mesh.select_all(action='SELECT')
+def insert_block(context, required_verts):
+    selected_objects = [obj for obj in bpy.context.selected_objects if obj.type == 'MESH']
 
-    # Separate by selection
+    if not selected_objects:
+        return {'CANCELLED'}
+
+    selected_verts = []
+    for obj in selected_objects:
+        if obj.mode == 'EDIT':
+            bm = bmesh.from_edit_mesh(obj.data)
+            selected_verts.extend([v for v in bm.verts if v.select])
+
+    if len(selected_verts) != required_verts:
+        return {'CANCELLED'}
+
+    # Guardar los objetos antes de la separación
+    before_objects = set(bpy.context.scene.objects)
+
+    # Extruir los vértices en la misma posición
+    bpy.ops.mesh.extrude_vertices_move(TRANSFORM_OT_translate={"value": (0, 0, 0)})
+
+    # Separar por selección
     bpy.ops.mesh.separate(type='SELECTED')
 
-    # Switch back to Object mode
+    # Limpiar los objetos originales para eliminar restos flotantes
+    for obj in selected_objects:
+        clean_object(obj)
+
+    # Salir de Modo Edición para poder unir los objetos
     bpy.ops.object.mode_set(mode='OBJECT')
 
-# Function to join two objects together
-def join_objects(obj1, obj2):
-    # Set the active object
-    bpy.context.view_layer.objects.active = obj1
-
-    # Select both objects
-    obj1.select_set(True)
-    obj2.select_set(True)
-
-    # Join the objects
-    bpy.ops.object.join()
-
-# Function to create a face and subdivide the geometry
-def fill_and_subdivide(obj):
-    # Switch to Edit mode
-    bpy.ops.object.mode_set(mode='EDIT')
-
-    # Select all vertices
-    bpy.ops.mesh.select_all(action='SELECT')
-
-    # Fill the selected vertices (creating a face)
-    bpy.ops.mesh.face_make_planar()
-
-    # Switch back to Object mode
-    bpy.ops.object.mode_set(mode='OBJECT')
-
-    # Subdivide the object
-    subdivide_new_object(obj)
-
-# Function to subdivide only the newly created object
-def subdivide_new_object(new_obj):
-    # Ensure we are in Object mode before operations
-    if bpy.context.mode != 'OBJECT':
-        bpy.ops.object.mode_set(mode='OBJECT')
-
-    # Deselect all objects
+    # Forzar actualización
     bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.update()
 
-    # Select and activate the newly created object
-    new_obj.select_set(True)
-    bpy.context.view_layer.objects.active = new_obj
+    # Detectar los nuevos objetos creados
+    new_objects = get_new_objects(before_objects)
 
-    # Switch to Edit mode and subdivide
-    bpy.ops.object.mode_set(mode='EDIT')  # Enter Edit mode
-    bpy.ops.mesh.select_all(action='SELECT')  # Select all geometry
-    bpy.ops.mesh.subdivide(number_cuts=1)  # Subdivide
-    bpy.ops.object.mode_set(mode='OBJECT')  # Return to Object mode
+    if not new_objects:
+        return {'CANCELLED'}
 
-# Function to get the coordinates of the selected vertices
-def get_selected_vertices():
-    """
-    Retrieve the world coordinates of selected vertices in Edit mode.
+    # Seleccionar solo los objetos recién creados y unirlos
+    for obj in new_objects:
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
 
-    Returns:
-        list of Vector: The selected vertices' world coordinates.
-    """
-    selected_verts = []
-    for obj in bpy.context.selected_objects:
-        if obj.type == 'MESH' and obj.mode == 'EDIT':
-            bm = bmesh.from_edit_mesh(obj.data)
-            selected_verts.extend([obj.matrix_world @ v.co for v in bm.verts if v.select])
-    return selected_verts
+    if len(new_objects) > 1:
+        bpy.ops.object.join()
 
-# Operator for the extrusion process
-class OBJECT_OT_ExtrudeAndSubdivide(bpy.types.Operator):
-    """
-    Extrude the selected vertices, separate them, join the objects, and create a face with subdivision.
-    """
-    bl_idname = "mesh.extrude_and_subdivide"
-    bl_label = "Extrude and Subdivide"
+    # Obtener el objeto resultante después de la unión
+    final_object = bpy.context.object
+
+    if not final_object:
+        return {'CANCELLED'}
+
+    # Entrar en modo edición para seleccionar vértices y rellenar con "F"
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.edge_face_add()
+
+    # Subdividir el objeto
+    bpy.ops.mesh.subdivide()
+
+    # Volver a Modo Objeto
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    # Limpiar la geometría sobrante en el objeto final
+    clean_object(final_object)
+
+    return {'FINISHED'}
+
+class MESH_OT_insert_quadblock(bpy.types.Operator):
+    bl_idname = "mesh.insert_quadblock"
+    bl_label = "Insert Quadblock"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        # Get the selected vertices
-        selected_verts = get_selected_vertices()
-        
-        # Ensure we have either 3 or 4 selected vertices
-        if len(selected_verts) == 3 or len(selected_verts) == 4:
-            # Extrude the selected vertices
-            extrude_vertices(context.active_object)
+        result = insert_block(context, 4)
+        if result == {'CANCELLED'}:
+            self.report({'WARNING'}, "You must select exactly 4 vertices for a Quadblock.")
+        return result
 
-            # Separate the extruded vertices
-            separate_by_selection(context.active_object)
+class MESH_OT_insert_triblock(bpy.types.Operator):
+    bl_idname = "mesh.insert_triblock"
+    bl_label = "Insert Triblock"
+    bl_options = {'REGISTER', 'UNDO'}
 
-            # Get the new objects created after separation
-            obj1 = context.active_object
-            obj2 = bpy.context.view_layer.objects.active
+    def execute(self, context):
+        result = insert_block(context, 3)
+        if result == {'CANCELLED'}:
+            self.report({'WARNING'}, "You must select exactly 3 vertices for a Triblock.")
+        return result
 
-            # Join the two objects together
-            join_objects(obj1, obj2)
-
-            # Create a face and subdivide the geometry
-            fill_and_subdivide(obj1)
-
-            return {'FINISHED'}
-        else:
-            self.report({'ERROR'}, "Select exactly 3 or 4 vertices.")
-            return {'CANCELLED'}
-
-# Panel for the buttons in the "Tools" tab
-class VIEW3D_PT_InsertShapesPanel(bpy.types.Panel):
-    """
-    UI Panel to insert shapes in the 3D Viewport.
-    """
-    bl_label = "Extrude and Subdivide"
-    bl_idname = "VIEW3D_PT_extrude_subdivide"
+class VIEW3D_PT_quadtriblock_panel(bpy.types.Panel):
+    bl_label = "Quadblock & Triblock"
+    bl_idname = "VIEW3D_PT_quadtriblock_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Tool'
+    bl_category = "Tool"
 
     def draw(self, context):
         layout = self.layout
-        layout.operator("mesh.extrude_and_subdivide")
+        layout.operator("mesh.insert_quadblock")
+        layout.operator("mesh.insert_triblock")
 
-# Register operators and panel
 def register():
-    bpy.utils.register_class(OBJECT_OT_ExtrudeAndSubdivide)
-    bpy.utils.register_class(VIEW3D_PT_InsertShapesPanel)
+    bpy.utils.register_class(MESH_OT_insert_quadblock)
+    bpy.utils.register_class(MESH_OT_insert_triblock)
+    bpy.utils.register_class(VIEW3D_PT_quadtriblock_panel)
 
 def unregister():
-    bpy.utils.unregister_class(OBJECT_OT_ExtrudeAndSubdivide)
-    bpy.utils.unregister_class(VIEW3D_PT_InsertShapesPanel)
+    bpy.utils.unregister_class(MESH_OT_insert_quadblock)
+    bpy.utils.unregister_class(MESH_OT_insert_triblock)
+    bpy.utils.unregister_class(VIEW3D_PT_quadtriblock_panel)
 
 if __name__ == "__main__":
     register()
