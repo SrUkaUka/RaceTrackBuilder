@@ -23,14 +23,9 @@ class GeometryToolsPanel(bpy.types.Panel):
         # Buttons
         col.operator("geometry.find_objects", text="Find")
         col.separator()
-
-        # Disable "Find Invalid Geometry" button if find_executed is False
-        find_executed = context.scene.get("find_executed", False)
-        find_invalid_operator = col.operator("geometry.find_invalid", text="Find Invalid Geometry")
-        if not find_executed:
-            find_invalid_operator.enabled = False  # Disable the button if Find hasn't been executed
+        col.operator("geometry.find_invalid", text="Find Invalid Geometry")
         col.separator()
-        col.operator("geometry.reset_name", text="Reset Name")
+        col.operator("geometry.reset_name", text="Reset Name")  # Aquí está el botón de Reset Name
 
 class OBJECT_OT_FindObjects(bpy.types.Operator):
     """Find objects and add suffixes based on the selection."""
@@ -53,21 +48,14 @@ class OBJECT_OT_FindObjects(bpy.types.Operator):
             vertex_count = len(obj.data.vertices)
             edge_count = len(obj.data.edges)  # Contamos las aristas
 
-            # Check if the object has NGons (faces with more than 4 vertices)
-            has_ngons = False
-            for poly in obj.data.polygons:
-                if len(poly.vertices) > 4:  # NGon found
-                    has_ngons = True
-                    break
-
             # Skip objects with NGons
-            if has_ngons:
+            if any(len(poly.vertices) > 4 for poly in obj.data.polygons):
                 continue
 
-            # Asignar sufijos según las opciones de búsqueda, también comprobando el número de aristas
-            if find_option == 'TRIBLOCK' and vertex_count == 6 and edge_count == 9:  # 6 vértices y 9 aristas
+            # Asignar sufijos basado en el número de vértices y aristas
+            if find_option == 'TRIBLOCK' and vertex_count == 6 and edge_count == 9:
                 obj.name = f"{obj.name}_triblock"
-            elif find_option == 'QUADBLOCK' and vertex_count == 9 and edge_count == 12:  # 9 vértices y 12 aristas
+            elif find_option == 'QUADBLOCK' and vertex_count == 9 and edge_count == 12:
                 obj.name = f"{obj.name}_quadblock"
 
         elapsed_time = time.time() - start_time
@@ -93,14 +81,10 @@ class OBJECT_OT_FindInvalidGeometry(bpy.types.Operator):
             self.report({'WARNING'}, "Both TRIBLOCK and QUADBLOCK suffixes must be found before marking invalid geometry.")
             return {'CANCELLED'}
 
-        # Filtramos los objetos MESH que no tienen los sufijos esperados
-        mesh_objects = [obj for obj in bpy.data.objects if obj.type == 'MESH']
-        
-        # Marcamos los objetos inválidos con el sufijo "_invalid"
-        for obj in mesh_objects:
-            if not (obj.name.endswith("_triblock") or obj.name.endswith("_quadblock")):
-                if "_invalid" not in obj.name:  # Evitar agregar sufijos repetidos
-                    obj.name = f"{obj.name}_invalid"
+        # Mark objects without the expected suffixes as "_invalid"
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH' and not (obj.name.endswith("_triblock") or obj.name.endswith("_quadblock")):
+                obj.name = f"{obj.name}_invalid"
 
         self.report({'INFO'}, "Invalid geometry marked.")
         return {'FINISHED'}
@@ -111,15 +95,17 @@ class OBJECT_OT_ResetName(bpy.types.Operator):
     bl_label = "Reset Name"
 
     def execute(self, context):
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH':
-                # Remove suffixes "_invalid", "_quadblock", "_triblock"
-                if obj.name.endswith("_invalid"):
-                    obj.name = obj.name.replace("_invalid", "")
-                if obj.name.endswith("_quadblock"):
-                    obj.name = obj.name.replace("_quadblock", "")
-                if obj.name.endswith("_triblock"):
-                    obj.name = obj.name.replace("_triblock", "")
+        # Filtramos los objetos MESH
+        mesh_objects = [obj for obj in bpy.data.objects if obj.type == 'MESH']
+        
+        for obj in mesh_objects:
+            # Eliminamos los sufijos "_invalid", "_quadblock", "_triblock"
+            if obj.name.endswith("_invalid"):
+                obj.name = obj.name.replace("_invalid", "")
+            if obj.name.endswith("_quadblock"):
+                obj.name = obj.name.replace("_quadblock", "")
+            if obj.name.endswith("_triblock"):
+                obj.name = obj.name.replace("_triblock", "")
 
         self.report({'INFO'}, "Names reset.")
         return {'FINISHED'}
