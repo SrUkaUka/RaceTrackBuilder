@@ -47,15 +47,16 @@ class OBJECT_OT_FindObjects(bpy.types.Operator):
         for obj in mesh_objects:
             vertex_count = len(obj.data.vertices)
             edge_count = len(obj.data.edges)  # Contamos las aristas
+            face_count = len(obj.data.polygons)  # Contamos las caras
 
             # Skip objects with NGons
             if any(len(poly.vertices) > 4 for poly in obj.data.polygons):
                 continue
 
-            # Asignar sufijos basado en el número de vértices y aristas
-            if find_option == 'TRIBLOCK' and vertex_count == 6 and edge_count == 9:
+            # Asignar sufijos basado en el número de vértices, aristas y caras
+            if find_option == 'TRIBLOCK' and vertex_count == 6 and edge_count == 9 and face_count == 4:
                 obj.name = f"{obj.name}_triblock"
-            elif find_option == 'QUADBLOCK' and vertex_count == 9 and edge_count == 12:
+            elif find_option == 'QUADBLOCK' and vertex_count == 9 and edge_count == 12 and face_count == 4:
                 obj.name = f"{obj.name}_quadblock"
 
         elapsed_time = time.time() - start_time
@@ -115,8 +116,8 @@ def register():
     bpy.types.Scene.find_option = bpy.props.EnumProperty(
         name="Find Option",
         items=[ 
-            ('TRIBLOCK', "Triblock", "Add suffix _triblock to objects with 6 vertices and 9 edges"),
-            ('QUADBLOCK', "Quadblock", "Add suffix _quadblock to objects with 9 vertices and 12 edges"),
+            ('TRIBLOCK', "Triblock", "Add suffix _triblock to objects with 6 vertices, 9 edges, and 4 faces"),
+            ('QUADBLOCK', "Quadblock", "Add suffix _quadblock to objects with 9 vertices, 12 edges, and 4 faces"),
         ],
         default='TRIBLOCK'
     )
