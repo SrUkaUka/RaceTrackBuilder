@@ -102,34 +102,21 @@ class ToggleGradientOperator(bpy.types.Operator):
         self.is_gradient_enabled = not self.is_gradient_enabled
         return {'FINISHED'}
 
-# Operador para editar el gradiente
-class EditGradientOperator(bpy.types.Operator):
-    bl_idname = "world.edit_gradient"
-    bl_label = "Editar Gradiente"
+# Operador para cambiar el área activa a ShaderNodeTree y configurar el shader en 'WORLD'
+class SwitchToShaderNodeTreeOperator(bpy.types.Operator):
+    bl_idname = "wm.switch_to_shader_nodetree"
+    bl_label = "Abrir Editor de Nodos de Shaders"
 
     def execute(self, context):
-        # Verificar si el área actual está dividida
-        screen = bpy.context.screen
-        areas = screen.areas
-
-        # Dividir la pantalla si no está dividida
-        if len(areas) == 1:  # Si solo hay una área (pantalla no dividida)
-            # Dividir la pantalla en dos
-            bpy.ops.screen.area_split(direction='HORIZONTAL', factor=0.5)
-            new_area = screen.areas[-1]
-        else:
-            # Usar la segunda área si ya está dividida
-            new_area = areas[1]
-        
-        # Cambiar el tipo del nuevo área a 'NODE_EDITOR'
-        new_area.type = 'NODE_EDITOR'
-
-        # Cambiar la vista de Node Editor a "World" y no "Object"
-        for space in new_area.spaces:
-            if space.type == 'NODE_EDITOR':
-                # Establecer el node tree al World Node Tree
-                space.node_tree = bpy.context.scene.world.node_tree
-                space.shader_type = 'WORLD'  # Cambiar a 'WORLD'
+        # Cambiar el área activa al tipo 'NODE_EDITOR'
+        for area in bpy.context.screen.areas:
+            if area.type == 'OUTLINER':  # Buscar el área 'OUTLINER' (o cualquier área que puedas estar usando)
+                area.ui_type = 'ShaderNodeTree'  # Cambiar el tipo a 'ShaderNodeTree'
+                # Asegurarse de que estamos en el editor de nodos
+                if area.spaces:
+                    for space in area.spaces:
+                        if space.type == 'NODE_EDITOR':  # Asegúrate de estar en un editor de nodos
+                            space.shader_type = 'WORLD'  # Cambiar tipo de shader a 'WORLD'
                 break
 
         return {'FINISHED'}
@@ -190,7 +177,6 @@ class GradientPanel(bpy.types.Panel):
 
             # Si existe el nodo ColorRamp, mostrar los valores
             if color_ramp:
-                layout.operator("world.edit_gradient", text="Editar Gradiente")
                 layout.operator("world.finish_skybox", text="Finalizar Skybox")
                 layout.operator("world.print_gradient_values", text="Imprimir Valores")
 
@@ -200,6 +186,9 @@ class GradientPanel(bpy.types.Panel):
                     # Convertir los valores de color a enteros (0-255)
                     rgb = tuple(int(c * 255) for c in element.color[:3])
                     layout.label(text=f"Posición: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
+
+                # Mostrar el botón de editar solo después de activar el gradiente
+                layout.operator("wm.switch_to_shader_nodetree", text="Abrir Editor de Nodos de Shaders")
             else:
                 layout.label(text="No se ha creado un gradiente")
         else:
@@ -208,14 +197,14 @@ class GradientPanel(bpy.types.Panel):
 # Registrar las clases
 def register():
     bpy.utils.register_class(ToggleGradientOperator)
-    bpy.utils.register_class(EditGradientOperator)
+    bpy.utils.register_class(SwitchToShaderNodeTreeOperator)
     bpy.utils.register_class(FinishSkyboxOperator)
     bpy.utils.register_class(PrintGradientValuesOperator)
     bpy.utils.register_class(GradientPanel)
 
 def unregister():
     bpy.utils.unregister_class(ToggleGradientOperator)
-    bpy.utils.unregister_class(EditGradientOperator)
+    bpy.utils.unregister_class(SwitchToShaderNodeTreeOperator)
     bpy.utils.unregister_class(FinishSkyboxOperator)
     bpy.utils.unregister_class(PrintGradientValuesOperator)
     bpy.utils.unregister_class(GradientPanel)
