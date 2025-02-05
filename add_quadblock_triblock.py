@@ -61,6 +61,10 @@ def insert_block(context, required_verts):
     for obj in selected_objects:
         clean_object(obj)
 
+    # Asegurarse de que hay un objeto activo y seleccionado
+    if not bpy.context.view_layer.objects.active:
+        bpy.context.view_layer.objects.active = selected_objects[0]
+
     # Salir de Modo Edición para poder unir los objetos
     bpy.ops.object.mode_set(mode='OBJECT')
 
