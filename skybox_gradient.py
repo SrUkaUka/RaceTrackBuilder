@@ -177,6 +177,9 @@ class GradientPanel(bpy.types.Panel):
 
             # Si existe el nodo ColorRamp, mostrar los valores
             if color_ramp:
+                # Colocar el botón para abrir el editor de nodos de shaders
+                layout.operator("wm.switch_to_shader_nodetree", text="Abrir Editor de Nodos de Shaders")
+                
                 layout.operator("world.finish_skybox", text="Finalizar Skybox")
                 layout.operator("world.print_gradient_values", text="Imprimir Valores")
 
@@ -187,8 +190,6 @@ class GradientPanel(bpy.types.Panel):
                     rgb = tuple(int(c * 255) for c in element.color[:3])
                     layout.label(text=f"Posición: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
 
-                # Mostrar el botón de editar solo después de activar el gradiente
-                layout.operator("wm.switch_to_shader_nodetree", text="Abrir Editor de Nodos de Shaders")
             else:
                 layout.label(text="No se ha creado un gradiente")
         else:
