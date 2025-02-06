@@ -57,10 +57,6 @@ def insert_block(context, required_verts):
     # Separar por selección
     bpy.ops.mesh.separate(type='SELECTED')
 
-    # Limpiar los objetos originales para eliminar restos flotantes
-    for obj in selected_objects:
-        clean_object(obj)
-
     # Asegurarse de que hay un objeto activo y seleccionado
     if not bpy.context.view_layer.objects.active:
         bpy.context.view_layer.objects.active = selected_objects[0]
@@ -105,6 +101,10 @@ def insert_block(context, required_verts):
 
     # Limpiar la geometría sobrante en el objeto final
     clean_object(final_object)
+
+    # Limpiar los objetos originales para eliminar restos flotantes
+    for obj in selected_objects:
+        clean_object(obj)
 
     return {'FINISHED'}
 
