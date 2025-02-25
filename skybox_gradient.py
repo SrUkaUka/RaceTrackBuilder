@@ -1,20 +1,20 @@
 import bpy
 
-# Variable global para guardar los valores del gradiente
+# Global variable to store gradient values
 saved_gradient_values = []
 
-# Función para crear o eliminar el gradiente
+# Function to create or remove the gradient
 def toggle_gradient(enable):
     global saved_gradient_values
     world = bpy.context.scene.world
 
-    # Verificar si hay nodos en el mundo
+    # Check if there are nodes in the world
     if not world.use_nodes:
         world.use_nodes = True
 
-    # Eliminar nodos actuales si hay y el gradiente está desactivado
+    # Remove current nodes if there are any and the gradient is being disabled
     if not enable:
-        # Guardar los valores actuales del ColorRamp antes de desactivarlo
+        # Save current ColorRamp values before disabling it
         color_ramp = get_color_ramp_node(world)
         if color_ramp:
             saved_gradient_values = [(element.position, element.color) for element in color_ramp.color_ramp.elements]
@@ -22,10 +22,10 @@ def toggle_gradient(enable):
         world.use_nodes = False
         return
 
-    # Si el gradiente está habilitado, crear los nodos
-    world.node_tree.nodes.clear()  # Limpiar nodos actuales
+    # If the gradient is enabled, create the nodes
+    world.node_tree.nodes.clear()  # Clear current nodes
 
-    # Crear los nodos para el gradiente
+    # Create nodes for the gradient
     background = world.node_tree.nodes.new(type="ShaderNodeBackground")
     gradient_texture = world.node_tree.nodes.new(type="ShaderNodeTexGradient")
     texture_coord = world.node_tree.nodes.new(type="ShaderNodeTexCoord")
@@ -33,7 +33,7 @@ def toggle_gradient(enable):
     separate_xyz = world.node_tree.nodes.new(type="ShaderNodeSeparateXYZ")
     color_ramp = world.node_tree.nodes.new(type="ShaderNodeValToRGB")
 
-    # Organizar nodos en posiciones específicas
+    # Organize nodes in specific positions
     background.location = (0, 0)
     gradient_texture.location = (220, 0)
     texture_coord.location = (-220, 0)
@@ -41,20 +41,20 @@ def toggle_gradient(enable):
     separate_xyz.location = (600, 0)
     color_ramp.location = (800, 0)
 
-    # Establecer la ubicación en Z del nodo Mapping a 0.4
-    mapping.inputs["Location"].default_value[2] = 0.4  # Establecer Z en 0.4
+    # Set the Z location of the Mapping node to 0.4
+    mapping.inputs["Location"].default_value[2] = 0.4  # Set Z to 0.4
 
-    # Conectar los nodos
+    # Connect the nodes
     world.node_tree.links.new(texture_coord.outputs["Generated"], mapping.inputs["Vector"])
     world.node_tree.links.new(mapping.outputs["Vector"], separate_xyz.inputs["Vector"])
     world.node_tree.links.new(separate_xyz.outputs["Z"], gradient_texture.inputs["Vector"])
     world.node_tree.links.new(gradient_texture.outputs["Color"], color_ramp.inputs["Fac"])
     world.node_tree.links.new(color_ramp.outputs["Color"], background.inputs["Color"])
 
-    # Configurar el tipo de gradiente
+    # Set the gradient type
     gradient_texture.gradient_type = 'LINEAR'
 
-    # Si existen valores guardados, restaurarlos
+    # If saved values exist, restore them
     if saved_gradient_values:
         elements = color_ramp.color_ramp.elements
         for i, (position, color) in enumerate(saved_gradient_values):
@@ -65,35 +65,35 @@ def toggle_gradient(enable):
                 new_element = elements.new(position)
                 new_element.color = color
     else:
-        # Si no hay valores guardados, establecer valores predeterminados
+        # If no saved values exist, set default values
         elements = color_ramp.color_ramp.elements
         elements[0].position = 0.0
-        elements[0].color = (0.0, 0.0, 1.0, 1.0)  # Azul
-        elements.new(0.2).color = (0.0, 0.5, 1.0, 1.0)  # Azul claro
-        elements.new(0.4).color = (0.0, 1.0, 1.0, 1.0)  # Cian
-        elements.new(0.6).color = (1.0, 1.0, 0.0, 1.0)  # Amarillo
-        elements.new(0.8).color = (1.0, 0.5, 0.0, 1.0)  # Naranja
+        elements[0].color = (0.0, 0.0, 1.0, 1.0)  # Blue
+        elements.new(0.2).color = (0.0, 0.5, 1.0, 1.0)  # Light Blue
+        elements.new(0.4).color = (0.0, 1.0, 1.0, 1.0)  # Cyan
+        elements.new(0.6).color = (1.0, 1.0, 0.0, 1.0)  # Yellow
+        elements.new(0.8).color = (1.0, 0.5, 0.0, 1.0)  # Orange
 
-    # Establecer el valor predeterminado de 'Background' a 0.600
+    # Set the default value of 'Background' to 0.600
     background.inputs["Strength"].default_value = 0.600
 
-    # Añadir el nodo World Output y conectar el nodo Background a este
+    # Add the World Output node and connect the Background node to it
     world_output = world.node_tree.nodes.new(type="ShaderNodeOutputWorld")
     world.node_tree.links.new(background.outputs["Background"], world_output.inputs["Surface"])
 
-    print("Gradiente activado de abajo hacia arriba.")
+    print("Gradient activated from bottom to top.")
 
-# Función para obtener el nodo ColorRamp
+# Function to get the ColorRamp node
 def get_color_ramp_node(world):
     for node in world.node_tree.nodes:
         if isinstance(node, bpy.types.ShaderNodeValToRGB):
             return node
     return None
 
-# Operador para alternar el gradiente
+# Operator to toggle the gradient
 class ToggleGradientOperator(bpy.types.Operator):
     bl_idname = "world.toggle_gradient"
-    bl_label = "Activar/Desactivar Gradiente"
+    bl_label = "Enable/Disable Gradient"
     
     is_gradient_enabled: bpy.props.BoolProperty(default=True)
 
@@ -102,100 +102,100 @@ class ToggleGradientOperator(bpy.types.Operator):
         self.is_gradient_enabled = not self.is_gradient_enabled
         return {'FINISHED'}
 
-# Operador para cambiar el área activa a ShaderNodeTree y configurar el shader en 'WORLD'
+# Operator to switch the active area to ShaderNodeTree and set the shader to 'WORLD'
 class SwitchToShaderNodeTreeOperator(bpy.types.Operator):
     bl_idname = "wm.switch_to_shader_nodetree"
-    bl_label = "Abrir Editor de Nodos de Shaders"
+    bl_label = "Open Shader Node Editor"
 
     def execute(self, context):
-        # Cambiar el área activa al tipo 'NODE_EDITOR'
+        # Switch the active area to type 'NODE_EDITOR'
         for area in bpy.context.screen.areas:
-            if area.type == 'OUTLINER':  # Buscar el área 'OUTLINER' (o cualquier área que puedas estar usando)
-                area.ui_type = 'ShaderNodeTree'  # Cambiar el tipo a 'ShaderNodeTree'
-                # Asegurarse de que estamos en el editor de nodos
+            if area.type == 'OUTLINER':  # Find the 'OUTLINER' area (or any area you might be using)
+                area.ui_type = 'ShaderNodeTree'  # Change the type to 'ShaderNodeTree'
+                # Ensure we're in the node editor
                 if area.spaces:
                     for space in area.spaces:
-                        if space.type == 'NODE_EDITOR':  # Asegúrate de estar en un editor de nodos
-                            space.shader_type = 'WORLD'  # Cambiar tipo de shader a 'WORLD'
+                        if space.type == 'NODE_EDITOR':  # Ensure we're in a node editor
+                            space.shader_type = 'WORLD'  # Change shader type to 'WORLD'
                 break
 
         return {'FINISHED'}
 
-# Operador para finalizar el skybox y volver al Outliner
+# Operator to finish the skybox and return to the Outliner
 class FinishSkyboxOperator(bpy.types.Operator):
     bl_idname = "world.finish_skybox"
-    bl_label = "Finalizar Skybox"
+    bl_label = "Finish Skybox"
 
     def execute(self, context):
-        # Cambiar el espacio de UI al 'OUTLINER' en el área secundaria
+        # Change the UI space to 'OUTLINER' in the secondary area
         screen = bpy.context.screen
         areas = screen.areas
 
-        # Si hay más de un área, cambiar la segunda área a 'OUTLINER'
+        # If there is more than one area, change the second area to 'OUTLINER'
         if len(areas) > 1:
             secondary_area = areas[1]
             secondary_area.ui_type = 'OUTLINER'
         
         return {'FINISHED'}
 
-# Operador para imprimir los valores del gradiente
+# Operator to print gradient values
 class PrintGradientValuesOperator(bpy.types.Operator):
     bl_idname = "world.print_gradient_values"
-    bl_label = "Imprimir Valores del Gradiente"
+    bl_label = "Print Gradient Values"
 
     def execute(self, context):
         world = bpy.context.scene.world
         color_ramp = get_color_ramp_node(world)
 
-        # Si existe el nodo ColorRamp, imprimir los valores en formato RGB
+        # If the ColorRamp node exists, print the values in RGB format
         if color_ramp:
             for element in color_ramp.color_ramp.elements:
-                position = (element.position * 440.0) - 220.0  # Convertir de 0.0:1.0 a -220:220
-                # Convertir los valores de color a enteros (0-255)
+                position = (element.position * 440.0) - 220.0  # Convert from 0.0:1.0 to -220:220
+                # Convert color values to integers (0-255)
                 rgb = tuple(int(c * 255) for c in element.color[:3])
-                print(f"Posición: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
+                print(f"Position: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
         return {'FINISHED'}
 
-# Panel para mostrar los valores RGB y la actualización del gradiente
+# Panel to show RGB values and gradient updates
 class GradientPanel(bpy.types.Panel):
-    bl_label = "Configuración de Gradiente"
+    bl_label = "Gradient Settings"
     bl_idname = "VIEW3D_PT_gradient_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "Gradiente"
+    bl_category = "Gradient"
 
     def draw(self, context):
         layout = self.layout
         world = bpy.context.scene.world
 
-        # Mostrar siempre el botón para activar el gradiente
-        layout.operator("world.toggle_gradient", text="Activar/Desactivar Gradiente")
+        # Always show the button to activate the gradient
+        layout.operator("world.toggle_gradient", text="Enable/Disable Gradient")
         
-        # Si el gradiente ha sido activado, mostrar los otros botones
+        # If the gradient has been activated, show other buttons
         if world.use_nodes:
             color_ramp = get_color_ramp_node(world)
 
-            # Si existe el nodo ColorRamp, mostrar los valores
+            # If the ColorRamp node exists, show the values
             if color_ramp:
-                # Colocar el botón para abrir el editor de nodos de shaders
-                layout.operator("wm.switch_to_shader_nodetree", text="Abrir Editor de Nodos de Shaders")
+                # Add button to open the shader node editor
+                layout.operator("wm.switch_to_shader_nodetree", text="Open Shader Node Editor")
                 
-                layout.operator("world.finish_skybox", text="Finalizar Skybox")
-                layout.operator("world.print_gradient_values", text="Imprimir Valores")
+                layout.operator("world.finish_skybox", text="Finish Skybox")
+                layout.operator("world.print_gradient_values", text="Print Values")
 
-                layout.label(text="Valores RGB actuales:")
+                layout.label(text="Current RGB Values:")
                 for element in color_ramp.color_ramp.elements:
-                    position = (element.position * 440.0) - 220.0  # Convertir de 0.0:1.0 a -220:220
-                    # Convertir los valores de color a enteros (0-255)
+                    position = (element.position * 440.0) - 220.0  # Convert from 0.0:1.0 to -220:220
+                    # Convert color values to integers (0-255)
                     rgb = tuple(int(c * 255) for c in element.color[:3])
-                    layout.label(text=f"Posición: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
+                    layout.label(text=f"Position: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
 
             else:
-                layout.label(text="No se ha creado un gradiente")
+                layout.label(text="No gradient has been created")
         else:
-            layout.label(text="Gradiente desactivado. Presione 'Activar Gradiente' para comenzar.")
+            layout.label(text="Gradient is off. Press 'Enable Gradient' to begin.")
 
-# Registrar las clases
+# Register classes
 def register():
     bpy.utils.register_class(ToggleGradientOperator)
     bpy.utils.register_class(SwitchToShaderNodeTreeOperator)
