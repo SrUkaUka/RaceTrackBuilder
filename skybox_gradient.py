@@ -1,11 +1,14 @@
 import bpy
+import json
+import os
+from bpy_extras.io_utils import ExportHelper
 
 # Global variable to store gradient values
 saved_gradient_values = []
 
 # Function to create or remove the gradient
 def toggle_gradient(enable):
-    global saved_gradient_values
+    global saved_gradient_values  # Explicitly declare it as global
     world = bpy.context.scene.world
 
     # Check if there are nodes in the world
@@ -147,13 +150,16 @@ class PrintGradientValuesOperator(bpy.types.Operator):
         world = bpy.context.scene.world
         color_ramp = get_color_ramp_node(world)
 
-        # If the ColorRamp node exists, print the values in RGB format
+        # If the ColorRamp node exists, print the values in RGB format and store them in the global variable
         if color_ramp:
-            for element in color_ramp.color_ramp.elements:
+            global saved_gradient_values  # Declare it as global to modify the global list
+            saved_gradient_values = []  # Clear the previous values
+            for i, element in enumerate(color_ramp.color_ramp.elements):
                 position = (element.position * 440.0) - 220.0  # Convert from 0.0:1.0 to -220:220
-                # Convert color values to integers (0-255)
-                rgb = tuple(int(c * 255) for c in element.color[:3])
-                print(f"Position: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
+                # Use the color values directly, as they are in the range [0.0, 1.0]
+                rgb = element.color[:3]  # Get RGB as float values in the range [0.0, 1.0]
+                saved_gradient_values.append((position, rgb))  # Store the values in the global variable
+                print(f"Position: {position:.2f}, RGB: {rgb[0]:.3f}, {rgb[1]:.3f}, {rgb[2]:.3f}")
         return {'FINISHED'}
 
 # Panel to show RGB values and gradient updates
@@ -184,17 +190,19 @@ class GradientPanel(bpy.types.Panel):
                 layout.operator("world.print_gradient_values", text="Print Values")
 
                 layout.label(text="Current RGB Values:")
-                for element in color_ramp.color_ramp.elements:
+                # Alternate between "From" and "To" for the label text
+                for i, element in enumerate(color_ramp.color_ramp.elements):
                     position = (element.position * 440.0) - 220.0  # Convert from 0.0:1.0 to -220:220
                     # Convert color values to integers (0-255)
                     rgb = tuple(int(c * 255) for c in element.color[:3])
-                    layout.label(text=f"Position: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
+                    label_text = "From" if i % 2 == 0 else "To"
+                    layout.label(text=f"{label_text} Position: {position:.2f}, RGB: {rgb[0]}, {rgb[1]}, {rgb[2]}")
 
             else:
                 layout.label(text="No gradient has been created")
         else:
             layout.label(text="Gradient is off. Press 'Enable Gradient' to begin.")
-
+        
 # Register classes
 def register():
     bpy.utils.register_class(ToggleGradientOperator)
