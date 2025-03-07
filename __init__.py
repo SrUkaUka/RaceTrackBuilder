@@ -29,6 +29,9 @@ from . import render_menu
 from . import Find_invalid_data
 from . import basic_uv_tools
 from . import skybox_gradient
+from . import swapvertices
+from . import RotateVerticesCoords
+from . import spawn 
 
 def register():
     # Registrar todos los módulos
@@ -51,6 +54,9 @@ def register():
         Find_invalid_data,
         basic_uv_tools,
         skybox_gradient,
+        swapvertices,
+        RotateVerticesCoords,
+        spawn,
     ]
     
     for module in modules:
@@ -82,6 +88,9 @@ def unregister():
         Find_invalid_data,
         basic_uv_tools,
         skybox_gradient,
+        swapvertices,
+        RotateVerticesCoords,
+        spawn,
     ]
     
     for module in modules:
