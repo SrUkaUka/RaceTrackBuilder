@@ -32,7 +32,8 @@ from . import skybox_gradient
 from . import skybox_preset
 from . import swapvertices
 from . import RotateVerticesCoords
-from . import spawn 
+from . import spawn
+from . import material_edit
 
 def register():
     # Registrar todos los módulos
@@ -59,6 +60,7 @@ def register():
         swapvertices,
         RotateVerticesCoords,
         spawn,
+        material_edit,
     ]
     
     for module in modules:
@@ -94,6 +96,7 @@ def unregister():
         swapvertices,
         RotateVerticesCoords,
         spawn,
+        material_edit,
     ]
     
     for module in modules:
