@@ -34,6 +34,7 @@ from . import swapvertices
 from . import RotateVerticesCoords
 from . import spawn
 from . import material_edit
+from . import turbo
 
 def register():
     # Registrar todos los módulos
@@ -61,6 +62,7 @@ def register():
         RotateVerticesCoords,
         spawn,
         material_edit,
+        turbo,
     ]
     
     for module in modules:
@@ -97,6 +99,7 @@ def unregister():
         RotateVerticesCoords,
         spawn,
         material_edit,
+        turbo,
     ]
     
     for module in modules:
