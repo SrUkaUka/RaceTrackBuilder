@@ -43,7 +43,7 @@ class MYADDON_PT_Generate(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="Bienvenido a Generate")
+        layout.label(text="Path Operator")
         layout.operator("wm.create_path", text="Create Path", icon="PLUS")
         if context.scene.path_count > 0:
             layout.operator("wm.remove_path", text="Remove Last Path", icon="X")
