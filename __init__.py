@@ -23,7 +23,6 @@ from . import assets_browser
 from . import simple_track
 from . import relative_track
 from . import apply_settings
-from . import ps1_material_config
 from . import vertex_lighting
 from . import render_menu
 from . import Find_invalid_data
@@ -35,6 +34,8 @@ from . import RotateVerticesCoords
 from . import spawn
 from . import material_edit
 from . import turbo
+from . import path_preset
+from . import path
 
 def register():
     # Registrar todos los módulos
@@ -51,7 +52,6 @@ def register():
         simple_track,
         relative_track,
         apply_settings,
-        ps1_material_config,
         vertex_lighting,
         render_menu,
         Find_invalid_data,
@@ -63,6 +63,8 @@ def register():
         spawn,
         material_edit,
         turbo,
+        path_preset,
+        path,
     ]
     
     for module in modules:
@@ -88,7 +90,6 @@ def unregister():
         simple_track,
         relative_track,
         apply_settings,
-        ps1_material_config,
         vertex_lighting,
         render_menu,
         Find_invalid_data,
@@ -100,6 +101,8 @@ def unregister():
         spawn,
         material_edit,
         turbo,
+        path_preset,
+        path,
     ]
     
     for module in modules:
