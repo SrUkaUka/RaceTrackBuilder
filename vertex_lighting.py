@@ -14,12 +14,10 @@ def add_vertex_lighting(light_type='SUN'):
     else:
         print("Color attribute 'Color' already exists.")
 
-    # Crear la luz seleccionada si no existe ya en la escena
-    if not any(o.type == 'LIGHT' and o.data.type == light_type for o in bpy.data.objects):
-        bpy.ops.object.light_add(type=light_type, align='WORLD', location=(0, 0, 10))
-        print(f"Light of type '{light_type}' created.")
-    else:
-        print(f"A light of type '{light_type}' already exists in the scene.")
+    # Se agrega la luz sin comprobar si ya existe una de este tipo en la escena,
+    # lo que permite insertar múltiples luces del mismo tipo.
+    bpy.ops.object.light_add(type=light_type, align='WORLD', location=(0, 0, 10))
+    print(f"Light of type '{light_type}' created.")
 
     # Configurar Cycles como motor de render y tipo de bake
     bpy.context.scene.render.engine = 'CYCLES'
