@@ -112,6 +112,18 @@ def connect_image_texture(self, context):
         else:
             self.report({'WARNING'}, f"El material '{mat.name}' no usa nodos.")
 
+# Nuevo operador para cambiar el motor de render a Eevee
+class BackToEeveeOperator(bpy.types.Operator):
+    """Operador para cambiar de Cycles a Eevee"""
+    bl_idname = "object.back_to_eevee"
+    bl_label = "Back to Eevee"
+    
+    def execute(self, context):
+        bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'
+        self.report({'INFO'}, "Render engine changed to Eevee")
+        print("Render engine changed to Eevee.")
+        return {'FINISHED'}
+
 class VertexLightingPanel(bpy.types.Panel):
     """Panel personalizado para agregar y hornear iluminación en Vertex Colors y conectar/desconectar nodos de textura"""
     bl_label = "Vertex Lighting & Texture Nodes"
@@ -135,6 +147,10 @@ class VertexLightingPanel(bpy.types.Panel):
         layout.label(text="Texture Node Control:")
         layout.operator("node.disconnect_image_texture", text="Texture Off")
         layout.operator("node.connect_image_texture", text="Texture On")
+        
+        layout.separator()
+        # Botón para cambiar de Cycles a Eevee
+        layout.operator("object.back_to_eevee", text="Back to Eevee")
 
 class AddVertexLightingOperator(bpy.types.Operator):
     """Operador para agregar el atributo de color y la luz"""
@@ -179,6 +195,7 @@ def register():
     bpy.utils.register_class(BakeVertexLightingOperator)
     bpy.utils.register_class(DisconnectImageTextureOperator)
     bpy.utils.register_class(ConnectImageTextureOperator)
+    bpy.utils.register_class(BackToEeveeOperator)
 
     bpy.types.Scene.light_type = bpy.props.EnumProperty(
         name="Light Type",
@@ -196,6 +213,7 @@ def unregister():
     bpy.utils.unregister_class(BakeVertexLightingOperator)
     bpy.utils.unregister_class(DisconnectImageTextureOperator)
     bpy.utils.unregister_class(ConnectImageTextureOperator)
+    bpy.utils.unregister_class(BackToEeveeOperator)
     del bpy.types.Scene.light_type
 
 if __name__ == "__main__":
