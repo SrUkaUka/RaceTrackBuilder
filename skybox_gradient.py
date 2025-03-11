@@ -71,11 +71,8 @@ def toggle_gradient(enable):
         # If no saved values exist, set default values
         elements = color_ramp.color_ramp.elements
         elements[0].position = 0.0
-        elements[0].color = (0.0, 0.0, 1.0, 1.0)  # Blue
         elements.new(0.2).color = (0.0, 0.5, 1.0, 1.0)  # Light Blue
-        elements.new(0.4).color = (0.0, 1.0, 1.0, 1.0)  # Cyan
         elements.new(0.6).color = (1.0, 1.0, 0.0, 1.0)  # Yellow
-        elements.new(0.8).color = (1.0, 0.5, 0.0, 1.0)  # Orange
 
     # Set the default value of 'Background' to 0.600
     background.inputs["Strength"].default_value = 0.600
