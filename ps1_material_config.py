@@ -1,10 +1,10 @@
 import bpy
 
 def setup_materials():
-    no_image_objects = []  # List to log objects without image textures
+    no_image_objects = []  # Lista de objetos sin texturas de imagen
 
     for obj in bpy.data.objects:
-        if obj.type != 'MESH':  # Only process meshes
+        if obj.type != 'MESH':  # Solo procesar mallas
             continue
 
         for mat_slot in obj.material_slots:
@@ -16,21 +16,21 @@ def setup_materials():
             nodes = mat.node_tree.nodes
             links = mat.node_tree.links
 
-            # Find image texture node
+            # Buscar nodo de textura de imagen
             image_node = None
             for node in nodes:
                 if node.type == 'TEX_IMAGE':
                     image_node = node
                     break
 
-            if not image_node:  # If no image texture, log object
+            if not image_node:  # Si no tiene textura de imagen, registrarlo
                 no_image_objects.append(obj.name)
                 continue
 
-            # Set up the material
+            # Configuración del material
             mat.blend_method = "CLIP"
 
-            # Remove non-image texture or output nodes
+            # Eliminar nodos innecesarios
             output_node = nodes.get("Material Output")
             for node in nodes:
                 if node != image_node and node != output_node:
@@ -39,7 +39,7 @@ def setup_materials():
             output_node.location = (700, 150)
             image_node.interpolation = "Closest"
 
-            # Create and set up additional nodes
+            # Crear y configurar nodos adicionales
             col_node = nodes.new(type="ShaderNodeAttribute")
             col_node.attribute_name = "Color"
             col_node.location = (-350, -150)
@@ -65,7 +65,7 @@ def setup_materials():
             rgba_node = nodes.new(type="ShaderNodeMixShader")
             rgba_node.location = (500, 150)
 
-            # Create links between nodes
+            # Conectar los nodos
             links.new(image_node.outputs[0], mix_node.inputs[1])
             links.new(col_node.outputs[0], mix_node.inputs[2])
             links.new(mix_node.outputs[0], mult_node.inputs[1])
@@ -75,7 +75,7 @@ def setup_materials():
             links.new(alpha_node.outputs[0], rgba_node.inputs[2])
             links.new(rgba_node.outputs[0], output_node.inputs[0])
 
-            # Set blend methods based on material name
+            # Definir método de mezcla según el nombre del material
             if mat.name.endswith("_0"):
                 mat.blend_method = "BLEND"
 
@@ -90,14 +90,22 @@ def setup_materials():
                 links.new(alpha2_node.outputs[0], add_node.inputs[1])
                 links.new(add_node.outputs[0], output_node.inputs[0])
 
-    # Show warnings if there are objects without image textures
+    # Mostrar advertencias si hay objetos sin textura de imagen
     if no_image_objects:
         self_report = "\n".join(no_image_objects)
-        # Use context to display the warning
-        bpy.context.window_manager.popup_menu(lambda self, context: self.layout.label(text=f"Objects without image texture: {self_report}"), title="Warning", icon='ERROR')
+        bpy.context.window_manager.popup_menu(
+            lambda self, context: self.layout.label(text=f"Objetos sin textura de imagen:\n{self_report}"),
+            title="Advertencia",
+            icon='ERROR'
+        )
 
-    # Switch to rendered mode (commented out to avoid changing screen)
-    # bpy.context.space_data.shading.type = 'RENDERED'  # This line is commented to avoid opening a new screen
+    # Cambiar a modo Render si es posible
+    for area in bpy.context.screen.areas:
+        if area.type == 'VIEW_3D':
+            for space in area.spaces:
+                if space.type == 'VIEW_3D':
+                    space.shading.type = 'RENDERED'
+            break
 
 def deactivate_ps1_render():
     for obj in bpy.context.scene.objects:
@@ -128,7 +136,7 @@ def deactivate_ps1_render():
                         material.node_tree.links.new(image_texture_node.outputs['Color'], principled_bsdf_node.inputs['Base Color'])
                         material.node_tree.links.new(principled_bsdf_node.outputs['BSDF'], material_output_node.inputs['Surface'])
                 else:
-                    print("Object", obj.name, "does not have a material assigned.")
+                    print(f"Objeto {obj.name} no tiene un material asignado.")
 
 def menu_draw(self, context):
     self.layout.operator("object.setup_materials")
@@ -136,8 +144,8 @@ def menu_draw(self, context):
 
 class OBJECT_OT_SetupMaterials(bpy.types.Operator):
     bl_idname = "object.setup_materials"
-    bl_label = "Setup PS1 Materials"
-    bl_description = "Sets up PS1-style materials for all objects in the scene"
+    bl_label = "Configurar Materiales PS1"
+    bl_description = "Configura materiales de estilo PS1 para todos los objetos en la escena"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -146,15 +154,15 @@ class OBJECT_OT_SetupMaterials(bpy.types.Operator):
 
 class OBJECT_OT_DeactivatePS1Render(bpy.types.Operator):
     bl_idname = "object.deactivate_ps1_render"
-    bl_label = "Deactivate PS1 Render"
-    bl_description = "Deactivates PS1-style render for all objects in the scene"
+    bl_label = "Desactivar Render PS1"
+    bl_description = "Desactiva el renderizado estilo PS1 para todos los objetos en la escena"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         deactivate_ps1_render()
         return {'FINISHED'}
 
-# Register the classes and menu
+# Registrar clases y menú
 classes = [OBJECT_OT_SetupMaterials, OBJECT_OT_DeactivatePS1Render]
 
 def register():
@@ -167,7 +175,6 @@ def unregister():
         try:
             bpy.utils.unregister_class(cls)
         except RuntimeError:
-            # Si ocurre un error al desregistrar, lo ignoramos.
             print(f"Error al desregistrar la clase {cls.__name__}")
     bpy.types.VIEW3D_MT_object.remove(menu_draw)
 
