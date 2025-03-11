@@ -20,6 +20,10 @@ class GeometryToolsPanel(bpy.types.Panel):
         else:
             col.label(text="Error: Property not found.", icon="ERROR")
 
+        # Checkboxes for skipping triblock and quadblock validation
+        col.prop(context.scene, "skip_triblock", text="No Triblock")
+        col.prop(context.scene, "skip_quadblock", text="No Quadblock")
+
         # Buttons
         col.operator("geometry.find_objects", text="Find")
         col.separator()
@@ -76,12 +80,15 @@ class OBJECT_OT_FindInvalidGeometry(bpy.types.Operator):
             self.report({'WARNING'}, "You must run the 'Find' operation first to identify valid geometry.")
             return {'CANCELLED'}
 
-        # Verificar si se han encontrado ambos sufijos (_triblock y _quadblock)
+        skip_triblock = context.scene.skip_triblock
+        skip_quadblock = context.scene.skip_quadblock
+
+        # Verificar si se han encontrado ambos sufijos (_triblock y _quadblock), a menos que se hayan marcado las excepciones
         triblock_found = any(obj.name.endswith("_triblock") for obj in bpy.data.objects if obj.type == 'MESH')
         quadblock_found = any(obj.name.endswith("_quadblock") for obj in bpy.data.objects if obj.type == 'MESH')
 
-        if not (triblock_found and quadblock_found):
-            self.report({'WARNING'}, "Both TRIBLOCK and QUADBLOCK suffixes must be found before marking invalid geometry.")
+        if not ((triblock_found or skip_triblock) and (quadblock_found or skip_quadblock)):
+            self.report({'WARNING'}, "Both TRIBLOCK and QUADBLOCK suffixes must be found or their exceptions checked before marking invalid geometry.")
             return {'CANCELLED'}
 
         # Recorrer todos los objetos en la escena
@@ -125,6 +132,8 @@ def register():
         default='TRIBLOCK'
     )
     bpy.types.Scene.find_executed = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.skip_triblock = bpy.props.BoolProperty(name="No Triblock", default=False)
+    bpy.types.Scene.skip_quadblock = bpy.props.BoolProperty(name="No Quadblock", default=False)
 
     for cls in classes:
         bpy.utils.register_class(cls)
@@ -138,6 +147,10 @@ def unregister():
         del bpy.types.Scene.find_option
     if "find_executed" in bpy.types.Scene.bl_rna.properties:
         del bpy.types.Scene.find_executed
+    if "skip_triblock" in bpy.types.Scene.bl_rna.properties:
+        del bpy.types.Scene.skip_triblock
+    if "skip_quadblock" in bpy.types.Scene.bl_rna.properties:
+        del bpy.types.Scene.skip_quadblock
 
 
 # Asegurar que las clases estén registradas
