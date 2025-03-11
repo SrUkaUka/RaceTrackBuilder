@@ -20,7 +20,7 @@ def toggle_gradient(enable):
         # Save current ColorRamp values before disabling it
         color_ramp = get_color_ramp_node(world)
         if color_ramp:
-            saved_gradient_values = [(element.position, element.color) for element in color_ramp.color_ramp.elements]
+            saved_gradient_values = [(element.position, tuple(element.color)) for element in color_ramp.color_ramp.elements]
 
         world.use_nodes = False
         return
