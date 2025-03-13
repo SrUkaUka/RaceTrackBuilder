@@ -13,13 +13,13 @@ class WM_OT_StoreData_Generate(bpy.types.Operator):
         global global_paths
 
         try:
-            # 🔥 Crear un diccionario ordenado
+            # Crear un diccionario ordenado
             ordered_paths = {}
 
-            # 📌 PRIMERO, agregar "header"
+            # PRIMERO, agregar "header"
             ordered_paths["header"] = 2
 
-            # 📌 LUEGO, agregar todos los "pathX"
+            # LUEGO, agregar todos los "pathX"
             for i in range(context.scene.path_count):
                 path_id = str(i)
                 ordered_paths[f"path{path_id}"] = {
@@ -31,13 +31,13 @@ class WM_OT_StoreData_Generate(bpy.types.Operator):
                     "quadStart": context.scene.get(f"start_objects_{path_id}", "").split(',') if context.scene.get(f"start_objects_{path_id}") else []
                 }
 
-            # 📌 FINALMENTE, agregar "pathCount" AL FINAL
+            # FINALMENTE, agregar "pathCount" AL FINAL
             ordered_paths["pathCount"] = context.scene.path_count
 
-            # 🔥 Guardamos en `bpy.types.Scene.global_paths`
+            # Guardamos en `bpy.types.Scene.global_paths`
             bpy.types.Scene.global_paths = ordered_paths
 
-            # 📌 Imprimir en consola para verificar
+            # Imprimir en consola para verificar
             print(json.dumps(ordered_paths, indent=4))
 
             self.report({'INFO'}, "Datos guardados correctamente en memoria.")
@@ -82,6 +82,8 @@ class WM_OT_ExportPreset_Generate(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        # Asignar un nombre de archivo por defecto
+        self.filepath = "untitled.json"
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
