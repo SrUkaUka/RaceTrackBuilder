@@ -36,6 +36,7 @@ from . import material_edit
 from . import turbo
 from . import path_preset
 from . import path
+from . import import_reference
 
 def register():
     # Registrar todos los módulos
@@ -65,6 +66,7 @@ def register():
         turbo,
         path_preset,
         path,
+        import_reference,
     ]
     
     for module in modules:
@@ -103,6 +105,7 @@ def unregister():
         turbo,
         path_preset,
         path,
+        import_reference,
     ]
     
     for module in modules:
