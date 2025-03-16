@@ -18,7 +18,7 @@ class MATERIAL_EDIT_PT_Panel(bpy.types.Panel):
         mat = obj.active_material if obj else None
 
         if mat:
-            layout.prop(mat, "texture_id", text="Texture ID")
+            # Se eliminó la propiedad "texture_id"
             layout.prop(mat, "terrain_type", text="Terrain Types")
 
             layout.label(text="Quadflags:")
@@ -58,7 +58,7 @@ class MATERIAL_OT_ExportJSON(bpy.types.Operator, bpy_extras.io_utils.ExportHelpe
             export_data[f"{mat_name}_drawflags"] = mat_info["Double Sided"]
             export_data[f"{mat_name}_quadflags"] = mat_info["Quadflag Index"]
             export_data[f"{mat_name}_terrain"] = mat_info["Terrain Type"].capitalize()  # Convierte la primera letra en mayúscula
-            export_data[f"{mat_name}_texture"] = mat_info["Texture ID"]
+            # Se eliminó la línea de exportación de Texture ID
 
         export_data["header"] = 3  # Se fuerza a que siempre sea 3
         export_data["materials"] = list(global_material_data.keys())
@@ -84,7 +84,7 @@ class MATERIAL_OT_KillPlane(bpy.types.Operator):
 
             update_quadflag_index(mat, context)
             self.report({'INFO'}, "Kill Plane applied!") 
-        
+            
         return {'FINISHED'}
 
 
@@ -106,7 +106,7 @@ class MATERIAL_OT_StoreData(bpy.types.Operator):
 
         for mat in used_materials:
             global_material_data[mat.name] = {
-                "Texture ID": mat.texture_id,
+                # Se eliminó "Texture ID"
                 "Terrain Type": mat.terrain_type,
                 "Quadflag Index": mat.quadflag_index,
                 "Double Sided": mat.double_sided,
@@ -147,8 +147,7 @@ def update_quadflag_index(self, context):
 
 
 def register():
-    bpy.types.Material.texture_id = bpy.props.IntProperty(name="Texture ID", default=0)
-
+    # Se eliminó la propiedad "texture_id"
     bpy.types.Material.terrain_type = bpy.props.EnumProperty(
         name="Terrain Types",
         items=[('ASPHALT', "Asphalt", ""), ('TRACK', "Track", ""), ('ICE', "Ice", ""), ('WATER', "Water", ""),
