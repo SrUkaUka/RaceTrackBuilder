@@ -2,10 +2,19 @@ import bpy
 import json
 import os
 from bpy_extras.io_utils import ExportHelper
-import mathutils  # Para manejar matrices y rotaciones
+import math
 
 # Almacena posiciones y rotaciones de los 8 conductores
-driver_spawns = [{"pos": (0.0, 0.0, 0.0), "rot": (0.0, 0.0, 0.0)} for _ in range(8)]
+driver_spawns = [
+    {"pos": (0.0, 0.0, 0.0), "rot": (0.0, 0.0, 0.0)}
+    for _ in range(8)
+]
+
+# Lista de nombres válidos de conductores
+VALID_DRIVER_NAMES = [
+    "cortex_driver", "crash_driver", "coco_driver", "tiny_driver",
+    "ngin_driver", "dingodile_driver", "polar_driver", "pura_driver"
+]
 
 # Propiedad para seleccionar el driver y el objeto de referencia
 class SpawnProperties(bpy.types.PropertyGroup):
@@ -21,7 +30,7 @@ class SpawnProperties(bpy.types.PropertyGroup):
         default=True
     )
 
-# Operador para asignar la posición de un objeto seleccionado al driver
+# Operador para asignar la posición y rotación del conductor
 class AssignSpawnOperator(bpy.types.Operator):
     bl_idname = "object.assign_spawn"
     bl_label = "Assign Spawn"
@@ -31,28 +40,74 @@ class AssignSpawnOperator(bpy.types.Operator):
         save_rotation = context.scene.spawn_properties.save_rotation
 
         obj = context.active_object  # Obtener el objeto seleccionado
-
-        if obj is None:  # Si no hay objeto seleccionado
+        if obj is None:
             self.report({'ERROR'}, "No object selected. Select an object in the viewport.")
             return {'CANCELLED'}
 
-        # Obtener la posición global del objeto
+        # Verifica si el nombre del objeto es válido
+        valid = any(obj.name.startswith(name) for name in VALID_DRIVER_NAMES)
+        if not valid:
+            self.report({'ERROR'}, f"Invalid object '{obj.name}'. Select a driver object (e.g., cortex_driver00).")
+            return {'CANCELLED'}
+
+        # Guardar posición (X, Y, Z)
         global_position = obj.matrix_world.translation
-
-        # Convertir Blender → CTR (mantener X igual, invertir solo Z)
         converted_position = (global_position.x, global_position.z, -global_position.y)
-
         driver_spawns[selected_driver]["pos"] = converted_position
 
-        # Obtener la rotación global en euler
-        global_rotation = obj.matrix_world.to_euler('XYZ')
+        if save_rotation:
+            # Obtener la rotación en Euler
+            global_rotation = obj.matrix_world.to_euler('XYZ')
+            raw_angle = global_rotation.z
+            angle = raw_angle % (2 * math.pi)
+            normalized_angle = angle / (2 * math.pi)
+            
+            rot_x_deg = math.degrees(obj.rotation_euler.x)
+            rot_x_steps = round(rot_x_deg / 180, 3)
 
-        # Convertir rotación Blender → CTR (mantener X igual, invertir solo Z)
-        converted_rotation = (global_rotation.x, global_rotation.z, -global_rotation.y)
+            # Mantiene la rotación Z actual y actualiza solo X e Y
+            current_z = driver_spawns[selected_driver]["rot"][2]
+            converted_rotation = (0.0, normalized_angle, current_z)
+        else:
+            # Mantiene la rotación Z y pone X, Y en 0
+            converted_rotation = (0.0, 0.0, driver_spawns[selected_driver]["rot"][2])
 
-        driver_spawns[selected_driver]["rot"] = converted_rotation if save_rotation else (0.0, 0.0, 0.0)
-
+        driver_spawns[selected_driver]["rot"] = converted_rotation
         self.report({'INFO'}, f"Assigned spawn for Driver {selected_driver} using '{obj.name}'")
+        return {'FINISHED'}
+
+# Operador para asignar la rotación de la cámara en el eje Z de CTR
+class AssignCameraOperator(bpy.types.Operator):
+    bl_idname = "object.assign_camera"
+    bl_label = "Assign Camera"
+
+    def execute(self, context):
+        selected_driver = int(context.scene.spawn_properties.driver_index)
+
+        obj = context.active_object  # Obtener el objeto seleccionado
+        if obj is None:
+            self.report({'ERROR'}, "No object selected. Select a camera pivot object.")
+            return {'CANCELLED'}
+
+        # Verifica que el nombre del objeto comience con "camera_pivot_"
+        if not obj.name.startswith("camera_pivot_"):
+            self.report({'ERROR'}, "Selected object is not a valid camera pivot (must start with 'camera_pivot_').")
+            return {'CANCELLED'}
+
+        # Obtener la rotación en el eje X de Blender
+        rot_x_deg = math.degrees(obj.rotation_euler.x)
+
+        # Convertir a formato CTR (1 unidad = 180°)
+        camera_rot_z = round(rot_x_deg / 180, 3)
+
+        # Solo modificamos el eje Z de la rotación en driver_spawns
+        driver_spawns[selected_driver]["rot"] = (
+            driver_spawns[selected_driver]["rot"][0],  # Mantiene X
+            driver_spawns[selected_driver]["rot"][1],  # Mantiene Y
+            camera_rot_z  # Asigna la nueva rotación Z
+        )
+
+        self.report({'INFO'}, f"Assigned camera rotation for Driver {selected_driver}: Z={camera_rot_z}")
         return {'FINISHED'}
 
 # Operador para exportar los spawns en formato JSON
@@ -66,19 +121,17 @@ class ExportPresetOperator(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         file_path = self.filepath  # Ruta seleccionada por el usuario
 
-        # Formatear la información para exportar
         export_data = {
             "header": 0,
             "spawn": [
                 {
                     "pos": {"x": d["pos"][0], "y": d["pos"][1], "z": d["pos"][2]},
-                    "rot": {"x": d["rot"][0], "y": d["rot"][1], "z": d["rot"][2]}
+                    "rot": {"x": d["rot"][0], "y": d["rot"][1], "z": d["rot"][2]}  # Z modificado por "Assign Camera"
                 }
                 for d in driver_spawns
             ]
         }
 
-        # Guardar el archivo JSON
         try:
             with open(file_path, "w") as f:
                 json.dump(export_data, f, indent=4)
@@ -96,7 +149,10 @@ class ResetPresetOperator(bpy.types.Operator):
 
     def execute(self, context):
         global driver_spawns
-        driver_spawns = [{"pos": (0.0, 0.0, 0.0), "rot": (0.0, 0.0, 0.0)} for _ in range(8)]
+        driver_spawns = [
+            {"pos": (0.0, 0.0, 0.0), "rot": (0.0, 0.0, 0.0)}
+            for _ in range(8)
+        ]
         self.report({'INFO'}, "Preset reset to default values")
         return {'FINISHED'}
 
@@ -112,23 +168,24 @@ class SpawnPanel(bpy.types.Panel):
         layout = self.layout
         props = context.scene.spawn_properties
 
-        layout.prop(props, "driver_index")  
-        layout.prop(props, "save_rotation")  # Checkbox para la rotación
+        layout.prop(props, "driver_index")
+        layout.prop(props, "save_rotation")
         layout.operator("object.assign_spawn")
+        layout.operator("object.assign_camera")
 
         selected_driver = int(props.driver_index)
         pos = driver_spawns[selected_driver]["pos"]
         rot = driver_spawns[selected_driver]["rot"]
 
         layout.label(text=f"Position: X={pos[0]:.2f}, Y={pos[1]:.2f}, Z={pos[2]:.2f}")
-        layout.label(text=f"Rotation: X={rot[0]:.2f}, Y={rot[1]:.2f}, Z={rot[2]:.2f}")
+        layout.label(text=f"Rotation: X={rot[0]:.2f}, Y={rot[1]:.3f}, Z={rot[2]:.3f}")
 
         layout.separator()
-        layout.operator("object.export_preset")  # Botón para exportar
-        layout.operator("object.reset_preset")   # Botón para resetear
+        layout.operator("object.export_preset")
+        layout.operator("object.reset_preset")
 
 # Registrar clases en Blender
-classes = [SpawnProperties, AssignSpawnOperator, ExportPresetOperator, ResetPresetOperator, SpawnPanel]
+classes = [SpawnProperties, AssignSpawnOperator, AssignCameraOperator, ExportPresetOperator, ResetPresetOperator, SpawnPanel]
 
 def register():
     for cls in classes:
