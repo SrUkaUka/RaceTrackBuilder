@@ -1,69 +1,69 @@
 import bpy
 
 def add_vertex_lighting(light_type='SUN'):
-    # Obtener el objeto activo
+    # Get the active object
     obj = bpy.context.object
     if obj is None or obj.type != 'MESH':
         print("Select a mesh object to continue.")
         return
 
-    # Crear el atributo de color "Color" si no existe
-    if "Color" not in obj.data.color_attributes:
+    # Create the color attribute "Attribute" if it does not exist
+    if "Attribute" not in obj.data.color_attributes:
         obj.data.color_attributes.new(name="Attribute", type='BYTE_COLOR', domain='CORNER')
-        print("Color attribute 'Color' created with 'FACE CORNER' domain.")
+        print("Color attribute 'Attribute' created with 'FACE CORNER' domain.")
     else:
-        print("Color attribute 'Color' already exists.")
+        print("Color attribute 'Attribute' already exists.")
 
-    # Se agrega la luz sin comprobar si ya existe una de este tipo en la escena,
-    # lo que permite insertar múltiples luces del mismo tipo.
+    # Add the light without checking if one of this type already exists in the scene,
+    # which allows inserting multiple lights of the same type.
     bpy.ops.object.light_add(type=light_type, align='WORLD', location=(0, 0, 10))
     print(f"Light of type '{light_type}' created.")
 
-    # Configurar Cycles como motor de render y tipo de bake
+    # Set Cycles as the render engine and set the bake type
     bpy.context.scene.render.engine = 'CYCLES'
     bpy.context.scene.cycles.bake_type = 'COMBINED'
     print("Rendering engine set to Cycles.")
 
 def bake_vertex_lighting():
-    # Obtener el objeto activo
+    # Get the active object
     obj = bpy.context.object
     if obj is None or obj.type != 'MESH':
         print("Select a mesh object to continue.")
         return
 
-    # Asegurar que el atributo 'Color' esté activo
-    if "Color" in obj.data.color_attributes:
-        obj.data.color_attributes.active = obj.data.color_attributes["Color"]
-        print("Color attribute 'Color' is active.")
+    # Ensure that the 'Attribute' attribute is active
+    if "Attribute" in obj.data.color_attributes:
+        obj.data.color_attributes.active = obj.data.color_attributes["Attribute"]
+        print("Color attribute 'Attribute' is active.")
     else:
-        print("Color attribute 'Color' doesn't exist. Use 'Add Vertex Lighting' first.")
+        print("Color attribute 'Attribute' doesn't exist. Use 'Add Vertex Lighting' first.")
         return
 
-    # Configurar ajustes para el bake
+    # Set bake settings
     bpy.context.scene.render.engine = 'CYCLES'
-    bpy.context.scene.cycles.bake_type = 'COMBINED'  # O 'VERTEX_COLORS' si se quiere solo la iluminación de color
-    bpy.context.scene.cycles.samples = 64  # Ajusta la cantidad de samples según se necesite
-    
-    # Establecer el target del bake a 'VERTEX_COLORS'
+    bpy.context.scene.cycles.bake_type = 'COMBINED'  # Or 'VERTEX_COLORS' if you want only the color lighting
+    bpy.context.scene.cycles.samples = 64  # Adjust the number of samples as needed
+
+    # Set the bake target to 'VERTEX_COLORS'
     bpy.context.scene.render.bake.target = 'VERTEX_COLORS'
     print("Bake target set to 'VERTEX_COLORS'.")
 
-    # Seleccionar únicamente el objeto activo (malla)
+    # Select only the active object (mesh)
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
-    
-    # Ejecutar el bake
+
+    # Execute the bake
     bpy.ops.object.bake(type='COMBINED')
     print("Bake completed.")
 
-# Función actualizada para desconectar el nodo "Image Texture" en TODOS los materiales del objeto activo
+# Updated function to disconnect the "Image Texture" node in ALL materials of the active object
 def disconnect_image_texture(self, context):
     obj = bpy.context.active_object
     if not obj:
-        self.report({'WARNING'}, "No hay objeto activo.")
+        self.report({'WARNING'}, "No active object.")
         return
     if not obj.data.materials:
-        self.report({'WARNING'}, "El objeto seleccionado no tiene materiales.")
+        self.report({'WARNING'}, "The selected object has no materials.")
         return
 
     for mat in obj.data.materials:
@@ -73,24 +73,24 @@ def disconnect_image_texture(self, context):
             node_tree = mat.node_tree
             image_texture_node = node_tree.nodes.get("Image Texture")
             if image_texture_node:
-                # Crear lista de enlaces a remover para evitar modificar la colección durante la iteración
+                # Create a list of links to remove to avoid modifying the collection during iteration
                 links_to_remove = [link for link in node_tree.links if link.from_node == image_texture_node]
                 for link in links_to_remove:
                     node_tree.links.remove(link)
-                self.report({'INFO'}, f"Se desconectó 'Image Texture' en el material '{mat.name}'.")
+                self.report({'INFO'}, f"'Image Texture' disconnected in material '{mat.name}'.")
             else:
-                self.report({'WARNING'}, f"Nodo 'Image Texture' no encontrado en el material '{mat.name}'.")
+                self.report({'WARNING'}, f"'Image Texture' node not found in material '{mat.name}'.")
         else:
-            self.report({'WARNING'}, f"El material '{mat.name}' no usa nodos.")
+            self.report({'WARNING'}, f"Material '{mat.name}' does not use nodes.")
 
-# Función actualizada para conectar el nodo "Image Texture" al nodo "Principled BSDF" en TODOS los materiales del objeto activo
+# Updated function to connect the "Image Texture" node to the "Principled BSDF" node in ALL materials of the active object
 def connect_image_texture(self, context):
     obj = bpy.context.active_object
     if not obj:
-        self.report({'WARNING'}, "No hay objeto activo.")
+        self.report({'WARNING'}, "No active object.")
         return
     if not obj.data.materials:
-        self.report({'WARNING'}, "El objeto seleccionado no tiene materiales.")
+        self.report({'WARNING'}, "The selected object has no materials.")
         return
 
     for mat in obj.data.materials:
@@ -101,20 +101,20 @@ def connect_image_texture(self, context):
             image_texture_node = node_tree.nodes.get("Image Texture")
             principled_node = node_tree.nodes.get("Principled BSDF")
             if image_texture_node and principled_node:
-                # Opcional: remover enlaces previos en el socket "Base Color"
+                # Optionally remove previous links from the "Base Color" socket
                 for link in principled_node.inputs["Base Color"].links:
                     node_tree.links.remove(link)
-                # Conectar el socket "Color" del nodo Image Texture al "Base Color" del Principled BSDF
+                # Connect the "Color" output of the Image Texture node to the "Base Color" input of the Principled BSDF
                 node_tree.links.new(image_texture_node.outputs["Color"], principled_node.inputs["Base Color"])
-                self.report({'INFO'}, f"Se conectó 'Image Texture' en el material '{mat.name}'.")
+                self.report({'INFO'}, f"'Image Texture' connected in material '{mat.name}'.")
             else:
-                self.report({'WARNING'}, f"Nodos requeridos no encontrados en el material '{mat.name}'.")
+                self.report({'WARNING'}, f"Required nodes not found in material '{mat.name}'.")
         else:
-            self.report({'WARNING'}, f"El material '{mat.name}' no usa nodos.")
+            self.report({'WARNING'}, f"Material '{mat.name}' does not use nodes.")
 
-# Nuevo operador para cambiar el motor de render a Eevee
+# New operator to change the render engine to Eevee
 class BackToEeveeOperator(bpy.types.Operator):
-    """Operador para cambiar de Cycles a Eevee"""
+    """Operator to change from Cycles to Eevee"""
     bl_idname = "object.back_to_eevee"
     bl_label = "Back to Eevee"
     
@@ -125,7 +125,7 @@ class BackToEeveeOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class VertexLightingPanel(bpy.types.Panel):
-    """Panel personalizado para agregar y hornear iluminación en Vertex Colors y conectar/desconectar nodos de textura"""
+    """Custom panel to add and bake Vertex Colors lighting and to connect/disconnect texture nodes"""
     bl_label = "Vertex Lighting & Texture Nodes"
     bl_idname = "VIEW3D_PT_vertex_lighting_and_texture"
     bl_space_type = 'VIEW_3D'
@@ -135,7 +135,7 @@ class VertexLightingPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        # Sección de Vertex Lighting
+        # Vertex Lighting section
         layout.label(text="Vertex Lighting:")
         layout.prop(context.scene, "light_type", text="Light Type")
         layout.operator("object.add_vertex_lighting", text="Add Vertex Lighting")
@@ -143,17 +143,17 @@ class VertexLightingPanel(bpy.types.Panel):
 
         layout.separator()
 
-        # Sección de Control de Nodos de Textura
+        # Texture Node Control section
         layout.label(text="Texture Node Control:")
         layout.operator("node.disconnect_image_texture", text="Texture Off")
         layout.operator("node.connect_image_texture", text="Texture On")
         
         layout.separator()
-        # Botón para cambiar de Cycles a Eevee
+        # Button to change from Cycles to Eevee
         layout.operator("object.back_to_eevee", text="Back to Eevee")
 
 class AddVertexLightingOperator(bpy.types.Operator):
-    """Operador para agregar el atributo de color y la luz"""
+    """Operator to add the color attribute and the light"""
     bl_idname = "object.add_vertex_lighting"
     bl_label = "Add Vertex Lighting"
 
@@ -163,7 +163,7 @@ class AddVertexLightingOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class BakeVertexLightingOperator(bpy.types.Operator):
-    """Operador para hornear la iluminación en Vertex Colors"""
+    """Operator to bake the lighting into Vertex Colors"""
     bl_idname = "object.bake_vertex_lighting"
     bl_label = "Bake Lighting"
 
@@ -172,18 +172,18 @@ class BakeVertexLightingOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class DisconnectImageTextureOperator(bpy.types.Operator):
-    """Operador para desconectar nodos de textura temporalmente"""
+    """Operator to temporarily disconnect texture nodes"""
     bl_idname = "node.disconnect_image_texture"
-    bl_label = "Desconectar Imagen"
+    bl_label = "Disconnect Image"
     
     def execute(self, context):
         disconnect_image_texture(self, context)
         return {'FINISHED'}
 
 class ConnectImageTextureOperator(bpy.types.Operator):
-    """Operador para conectar los nodos de textura"""
+    """Operator to connect the texture nodes"""
     bl_idname = "node.connect_image_texture"
-    bl_label = "Conectar Imagen"
+    bl_label = "Connect Image"
     
     def execute(self, context):
         connect_image_texture(self, context)
