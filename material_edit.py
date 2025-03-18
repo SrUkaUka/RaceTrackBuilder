@@ -78,12 +78,13 @@ class MATERIAL_OT_KillPlane(bpy.types.Operator):
     def execute(self, context):
         mat = context.object.active_material
         if mat:
-            quadflags_to_activate = ["Wall", "Out_of_Bounds", "Mask_Grab", "No_Collision", "Invisible_Trigger"]
-            for flag in quadflags_to_activate:
-                setattr(mat, f"quadflags_{flag}", True)
+            kill_plane_flags = {"Wall", "Out_of_Bounds", "Mask_Grab", "No_Collision", "Invisible_Trigger"}
+            # Itera sobre todos los flags y activa solo los de kill plane, desactivando el resto
+            for flag in mat.quadflags:
+                setattr(mat, f"quadflags_{flag}", flag in kill_plane_flags)
 
             update_quadflag_index(mat, context)
-            self.report({'INFO'}, "Kill Plane applied!") 
+            self.report({'INFO'}, "Kill Plane applied!")
             
         return {'FINISHED'}
 
