@@ -38,7 +38,7 @@ def toggle_gradient(enable):
     color_ramp = world.node_tree.nodes.new(type="ShaderNodeValToRGB")
     
     # Set the interpolation of the ColorRamp node to 'LINEAR' (modificado)
-    color_ramp.color_ramp.interpolation = 'LINEAR'
+    color_ramp.color_ramp.interpolation = 'EASE'
 
     # Arrange nodes in specific positions
     background.location = (0, 0)
@@ -59,7 +59,7 @@ def toggle_gradient(enable):
     world.node_tree.links.new(color_ramp.outputs["Color"], background.inputs["Color"])
 
     # Set the gradient type
-    gradient_texture.gradient_type = 'LINEAR'
+    gradient_texture.gradient_type = 'EASING'
 
     # If there are saved values, restore them
     if saved_gradient_values:
@@ -87,8 +87,8 @@ def toggle_gradient(enable):
     world_output = world.node_tree.nodes.new(type="ShaderNodeOutputWorld")
     world.node_tree.links.new(background.outputs["Background"], world_output.inputs["Surface"])
 
-    # Cambios adicionales solicitados:
-    bpy.data.worlds["World"].node_tree.nodes["Color Ramp"].color_ramp.interpolation = 'LINEAR'
+    # Render settings:
+    bpy.data.worlds["World"].node_tree.nodes["Color Ramp"].color_ramp.interpolation = 'EASE'
     bpy.context.scene.view_settings.look = 'None'
     bpy.context.scene.view_settings.view_transform = 'Standard'
 
