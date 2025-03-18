@@ -6,7 +6,14 @@ import bpy_extras.io_utils
 # Variable global que almacena los valores del gradiente
 saved_gradient_values = []
 
-# Función para obtener los valores actuales del ColorRamp
+def linear_to_srgb(c):
+    """Convierte un valor de color del espacio lineal a sRGB."""
+    if c <= 0.0031308:
+        return 12.92 * c
+    else:
+        return 1.055 * (c ** (1/2.4)) - 0.055
+
+# Función para obtener los valores actuales del ColorRamp y convertir la posición a rango [-200, 200]
 def update_saved_gradient_values():
     global saved_gradient_values
     world = bpy.context.scene.world
@@ -23,11 +30,12 @@ def update_saved_gradient_values():
     if color_ramp:
         saved_gradient_values.clear()  # Limpiar la lista antes de actualizar
         for element in color_ramp.color_ramp.elements:
-            position = (element.position * 440.0) - 220.0  # Conversión de rango
-            rgb = element.color[:3]  # Obtener solo RGB
+            # Conversión a rango fijo de [-200, 200]
+            position = (element.position * 280.0) - 140.0
+            rgb = element.color[:3]  # Obtener solo RGB (en espacio lineal)
             saved_gradient_values.append((position, rgb))
 
-# Función para exportar el preset en formato JSON con el orden correcto
+# Función para exportar el preset en formato JSON con el orden correcto y precisión de 17 decimales
 def export_preset(filepath):
     global saved_gradient_values
 
@@ -57,31 +65,38 @@ def export_preset(filepath):
         pos_from, color_from = saved_gradient_values[i]
         pos_to, color_to = saved_gradient_values[i + 1]
 
-        # **El primer par se mantiene en orden natural**
-        if i == 0:
-            pass  # No hacemos nada, ya está correcto
-        else:
-            # **Todos los demás pares se invierten si es necesario**
+        # El primer par se mantiene en orden natural
+        if i != 0:
+            # Todos los demás pares se invierten si es necesario
             if pos_from < pos_to:
                 pos_from, pos_to = pos_to, pos_from  # Intercambiar posiciones
                 color_from, color_to = color_to, color_from  # Intercambiar colores
 
-        # Agregar al JSON
+        # Convertir cada componente de color de lineal a sRGB
+        r_from = linear_to_srgb(color_from[0])
+        g_from = linear_to_srgb(color_from[1])
+        b_from = linear_to_srgb(color_from[2])
+        
+        r_to = linear_to_srgb(color_to[0])
+        g_to = linear_to_srgb(color_to[1])
+        b_to = linear_to_srgb(color_to[2])
+        
+        # Agregar al JSON con 17 decimales de precisión
         gradient_entry = {
             "colorFrom": {
-                "r": round(float(color_from[0]), 10),
-                "g": round(float(color_from[1]), 10),
-                "b": round(float(color_from[2]), 10),
+                "r": round(float(r_from), 17),
+                "g": round(float(g_from), 17),
+                "b": round(float(b_from), 17),
                 "a": False
             },
             "colorTo": {
-                "r": round(float(color_to[0]), 10),
-                "g": round(float(color_to[1]), 10),
-                "b": round(float(color_to[2]), 10),
+                "r": round(float(r_to), 17),
+                "g": round(float(g_to), 17),
+                "b": round(float(b_to), 17),
                 "a": False
             },
-            "posFrom": round(float(pos_from), 10),
-            "posTo": round(float(pos_to), 10)
+            "posFrom": round(float(pos_from), 17),
+            "posTo": round(float(pos_to), 17)
         }
         
         preset_data["skyGradient"].append(gradient_entry)
@@ -106,24 +121,24 @@ class ExportPresetOperator(bpy.types.Operator, bpy_extras.io_utils.ExportHelper)
 
 # Panel de Blender con solo el botón "Export Preset"
 class ExportGradientPanel(bpy.types.Panel):
-    bl_label = "Export Gradient Preset"  # Nuevo título
-    bl_idname = "VIEW3D_PT_export_gradient_panel"  # Nuevo ID único
+    bl_label = "Export Gradient Preset"
+    bl_idname = "VIEW3D_PT_export_gradient_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "Gradient"  # Se mantiene en la misma pestaña
+    bl_category = "Gradient"
 
     def draw(self, context):
         layout = self.layout
-        layout.operator("export.preset", text="Export Preset")  # Único botón
+        layout.operator("export.preset", text="Export Preset")
 
 # Registrar clases en Blender
 def register():
     bpy.utils.register_class(ExportPresetOperator)
-    bpy.utils.register_class(ExportGradientPanel)  # Registrar el nuevo panel
+    bpy.utils.register_class(ExportGradientPanel)
 
 def unregister():
     bpy.utils.unregister_class(ExportPresetOperator)
-    bpy.utils.unregister_class(ExportGradientPanel)  # Desregistrar el nuevo panel
+    bpy.utils.unregister_class(ExportGradientPanel)
 
 if __name__ == "__main__":
     register()
