@@ -65,7 +65,7 @@ class OBJECT_OT_FindObjects(bpy.types.Operator):
 
 
 class OBJECT_OT_FindInvalidGeometry(bpy.types.Operator):
-    """Mark objects as 'invalid' if their geometry does not meet the expected criteria."""
+    """Mark objects as 'invalid' if their geometry or UVs do not meet the expected criteria."""
     bl_idname = "geometry.find_invalid"
     bl_label = "Find Invalid Geometry"
 
@@ -97,6 +97,22 @@ class OBJECT_OT_FindInvalidGeometry(bpy.types.Operator):
 
             # Si contiene NGons, se marca como inválido.
             if any(len(poly.vertices) > 4 for poly in obj.data.polygons):
+                obj.name = f"{obj.name}_invalid"
+                continue
+
+            # Validación de UVs: Si existen capas de UV, se verifica que todas las coordenadas estén en rango [0, 1].
+            uv_out_of_range = False
+            if obj.data.uv_layers:
+                for uv_layer in obj.data.uv_layers:
+                    # Recorremos cada loop de la capa UV
+                    for uv_data in uv_layer.data:
+                        u, v = uv_data.uv.x, uv_data.uv.y
+                        if u < 0 or u > 1 or v < 0 or v > 1:
+                            uv_out_of_range = True
+                            break
+                    if uv_out_of_range:
+                        break
+            if uv_out_of_range:
                 obj.name = f"{obj.name}_invalid"
                 continue
 
