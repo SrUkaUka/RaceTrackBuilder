@@ -9,7 +9,7 @@ def add_vertex_lighting(light_type='SUN'):
 
     # Crear el atributo de color "Color" si no existe
     if "Color" not in obj.data.color_attributes:
-        obj.data.color_attributes.new(name="Color", type='BYTE_COLOR', domain='CORNER')
+        obj.data.color_attributes.new(name="Attribute", type='BYTE_COLOR', domain='CORNER')
         print("Color attribute 'Color' created with 'FACE CORNER' domain.")
     else:
         print("Color attribute 'Color' already exists.")
