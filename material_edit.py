@@ -35,6 +35,7 @@ class MATERIAL_EDIT_PT_Panel(bpy.types.Panel):
 
         layout.operator("material.store_data", text="Store Data", icon="FILE_TICK")
         layout.operator("material.export_json", text="Export Material Preset", icon="EXPORT")
+        layout.operator("material.apply_settings", text="Apply Settings to Materials", icon="FILE_REFRESH")
 
 
 class MATERIAL_OT_ExportJSON(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
@@ -57,8 +58,7 @@ class MATERIAL_OT_ExportJSON(bpy.types.Operator, bpy_extras.io_utils.ExportHelpe
             export_data[f"{mat_name}_checkpoint"] = mat_info["Checkpoint"]
             export_data[f"{mat_name}_drawflags"] = mat_info["Double Sided"]
             export_data[f"{mat_name}_quadflags"] = mat_info["Quadflag Index"]
-            export_data[f"{mat_name}_terrain"] = mat_info["Terrain Type"].capitalize()  # Convierte la primera letra en mayúscula
-            # Se eliminó la línea de exportación de Texture ID
+            export_data[f"{mat_name}_terrain"] = mat_info["Terrain Type"].capitalize()  # Primera letra en mayúscula
 
         export_data["header"] = 3  # Se fuerza a que siempre sea 3
         export_data["materials"] = list(global_material_data.keys())
@@ -79,7 +79,7 @@ class MATERIAL_OT_KillPlane(bpy.types.Operator):
         mat = context.object.active_material
         if mat:
             kill_plane_flags = {"Wall", "Out_of_Bounds", "Mask_Grab", "No_Collision", "Invisible_Trigger"}
-            # Itera sobre todos los flags y activa solo los de kill plane, desactivando el resto
+            # Activa solo los flags de kill plane y desactiva el resto
             for flag in mat.quadflags:
                 setattr(mat, f"quadflags_{flag}", flag in kill_plane_flags)
 
@@ -107,7 +107,6 @@ class MATERIAL_OT_StoreData(bpy.types.Operator):
 
         for mat in used_materials:
             global_material_data[mat.name] = {
-                # Se eliminó "Texture ID"
                 "Terrain Type": mat.terrain_type,
                 "Quadflag Index": mat.quadflag_index,
                 "Double Sided": mat.double_sided,
@@ -117,6 +116,72 @@ class MATERIAL_OT_StoreData(bpy.types.Operator):
         self.report({'INFO'}, f"Stored {len(global_material_data)} materials!")
         print("Stored Material Data:", json.dumps(global_material_data, indent=4))
 
+        return {'FINISHED'}
+
+
+# Clase auxiliar para la lista de selección de materiales
+class MaterialSelectionItem(bpy.types.PropertyGroup):
+    material_name: bpy.props.StringProperty(name="Material Name")
+    select: bpy.props.BoolProperty(name="Apply", default=False)
+
+
+class MATERIAL_OT_ApplySettings(bpy.types.Operator):
+    """Muestra una lista de materiales para aplicar la configuración del material activo"""
+    bl_idname = "material.apply_settings"
+    bl_label = "Apply Settings to Materials"
+    
+    # Colección de materiales para seleccionar
+    materials: bpy.props.CollectionProperty(type=MaterialSelectionItem)
+    material_index: bpy.props.IntProperty(name="Index", default=0)
+    
+    def invoke(self, context, event):
+        # Limpia la colección
+        self.materials.clear()
+        
+        # Recopila los materiales que están en uso en la escena
+        used_materials = set()
+        for obj in bpy.data.objects:
+            if obj.type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT'}:
+                for slot in obj.material_slots:
+                    if slot.material:
+                        used_materials.add(slot.material)
+                        
+        # Agrega a la colección solo los materiales en uso
+        for mat in used_materials:
+            item = self.materials.add()
+            item.material_name = mat.name
+            item.select = False
+        return context.window_manager.invoke_props_dialog(self, width=400)
+    
+    def draw(self, context):
+        layout = self.layout
+        box = layout.box()
+        box.label(text="Seleccione los materiales a los que aplicar la configuración:")
+        for item in self.materials:
+            row = box.row()
+            row.prop(item, "select", text="")
+            row.label(text=item.material_name)
+    
+    def execute(self, context):
+        active_mat = context.object.active_material
+        if not active_mat:
+            self.report({'WARNING'}, "No hay material activo en el objeto!")
+            return {'CANCELLED'}
+        
+        # Recorre la lista de materiales seleccionados y aplica las propiedades del material activo
+        for item in self.materials:
+            if item.select:
+                target_mat = bpy.data.materials.get(item.material_name)
+                if target_mat:
+                    # Copia las propiedades personalizadas
+                    target_mat.terrain_type = active_mat.terrain_type
+                    target_mat.quadflag_index = active_mat.quadflag_index
+                    target_mat.double_sided = active_mat.double_sided
+                    target_mat.checkpoint = active_mat.checkpoint
+                    # Copia cada uno de los quadflags
+                    for flag in active_mat.quadflags:
+                        setattr(target_mat, f"quadflags_{flag}", getattr(active_mat, f"quadflags_{flag}", False))
+        self.report({'INFO'}, "Configuración aplicada a los materiales seleccionados.")
         return {'FINISHED'}
 
 
@@ -172,13 +237,17 @@ def register():
     bpy.types.Material.double_sided = bpy.props.BoolProperty(name="Double Sided", default=False)
     bpy.types.Material.checkpoint = bpy.props.BoolProperty(name="Checkpoint", default=False)
 
+    bpy.utils.register_class(MaterialSelectionItem)
     bpy.utils.register_class(MATERIAL_EDIT_PT_Panel)
     bpy.utils.register_class(MATERIAL_OT_KillPlane)
     bpy.utils.register_class(MATERIAL_OT_StoreData)
     bpy.utils.register_class(MATERIAL_OT_ExportJSON)
+    bpy.utils.register_class(MATERIAL_OT_ApplySettings)
 
 
 def unregister():
+    bpy.utils.unregister_class(MATERIAL_OT_ApplySettings)
+    bpy.utils.unregister_class(MaterialSelectionItem)
     bpy.utils.unregister_class(MATERIAL_EDIT_PT_Panel)
     bpy.utils.unregister_class(MATERIAL_OT_KillPlane)
     bpy.utils.unregister_class(MATERIAL_OT_StoreData)
