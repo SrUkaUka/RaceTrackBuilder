@@ -65,7 +65,7 @@ class OBJECT_OT_FindObjects(bpy.types.Operator):
 
 
 class OBJECT_OT_FindInvalidGeometry(bpy.types.Operator):
-    """Mark objects as 'invalid' if their geometry or UVs do not meet the expected criteria."""
+    """Mark objects with invalid geometry or UVs by adding appropriate suffixes."""
     bl_idname = "geometry.find_invalid"
     bl_label = "Find Invalid Geometry"
 
@@ -86,60 +86,61 @@ class OBJECT_OT_FindInvalidGeometry(bpy.types.Operator):
             return {'CANCELLED'}
 
         for obj in bpy.data.objects:
-            # Si no es MESH, se marca como inválido.
+            geometry_invalid = False
+            uvs_invalid = False
+
+            # Si no es MESH, se marca como geometría inválida.
             if obj.type != 'MESH':
-                obj.name = f"{obj.name}_invalid"
-                continue
-
-            vertex_count = len(obj.data.vertices)
-            edge_count = len(obj.data.edges)
-            face_count = len(obj.data.polygons)
-
-            # Si contiene NGons, se marca como inválido.
-            if any(len(poly.vertices) > 4 for poly in obj.data.polygons):
-                obj.name = f"{obj.name}_invalid"
-                continue
-
-            # Validación de UVs: Si existen capas de UV, se verifica que todas las coordenadas estén en rango [0, 1].
-            uv_out_of_range = False
-            if obj.data.uv_layers:
-                for uv_layer in obj.data.uv_layers:
-                    # Recorremos cada loop de la capa UV
-                    for uv_data in uv_layer.data:
-                        u, v = uv_data.uv.x, uv_data.uv.y
-                        if u < 0 or u > 1 or v < 0 or v > 1:
-                            uv_out_of_range = True
-                            break
-                    if uv_out_of_range:
-                        break
-            if uv_out_of_range:
-                obj.name = f"{obj.name}_invalid"
-                continue
-
-            # Si es un triblock, se debe cumplir la condición completa.
-            if obj.name.endswith("_triblock"):
-                if vertex_count != 6 or edge_count != 9 or face_count != 4:
-                    obj.name = f"{obj.name}_invalid"
-            # Si es un quadblock, se verifica su geometría.
-            elif obj.name.endswith("_quadblock"):
-                if vertex_count != 9 or edge_count != 12 or face_count != 4:
-                    obj.name = f"{obj.name}_invalid"
+                geometry_invalid = True
             else:
-                # Si no tiene ninguno de los sufijos, se marca como inválido.
-                obj.name = f"{obj.name}_invalid"
+                vertex_count = len(obj.data.vertices)
+                edge_count = len(obj.data.edges)
+                face_count = len(obj.data.polygons)
 
-        self.report({'INFO'}, "Invalid geometry marked.")
+                # Si contiene NGons, se marca como geometría inválida.
+                if any(len(poly.vertices) > 4 for poly in obj.data.polygons):
+                    geometry_invalid = True
+
+                # Validación de geometría según el sufijo asignado.
+                if obj.name.endswith("_triblock"):
+                    if vertex_count != 6 or edge_count != 9 or face_count != 4:
+                        geometry_invalid = True
+                elif obj.name.endswith("_quadblock"):
+                    if vertex_count != 9 or edge_count != 12 or face_count != 4:
+                        geometry_invalid = True
+                else:
+                    # Si no tiene ninguno de los sufijos, se marca como geometría inválida.
+                    geometry_invalid = True
+
+                # Validación de UVs: Si existen capas de UV, se verifica que todas las coordenadas estén en rango [0, 1].
+                if obj.data.uv_layers:
+                    for uv_layer in obj.data.uv_layers:
+                        for uv_data in uv_layer.data:
+                            u, v = uv_data.uv.x, uv_data.uv.y
+                            if u < 0 or u > 1 or v < 0 or v > 1:
+                                uvs_invalid = True
+                                break
+                        if uvs_invalid:
+                            break
+
+            # Añadir sufijos según corresponda
+            if geometry_invalid and "_invalid_geometry" not in obj.name:
+                obj.name = f"{obj.name}_invalid_geometry"
+            if uvs_invalid and "_invalid_uvs" not in obj.name:
+                obj.name = f"{obj.name}_invalid_uvs"
+
+        self.report({'INFO'}, "Invalid geometry/UVs marked.")
         return {'FINISHED'}
 
 
 class OBJECT_OT_ResetName(bpy.types.Operator):
-    """Remove '_invalid', '_quadblock', and '_triblock' suffixes from all objects."""
+    """Remove '_invalid_geometry', '_invalid_uvs', '_quadblock', and '_triblock' suffixes from all objects."""
     bl_idname = "geometry.reset_name"
     bl_label = "Reset Name"
 
     def execute(self, context):
         for obj in bpy.data.objects:
-            for suffix in ["_invalid", "_quadblock", "_triblock"]:
+            for suffix in ["_invalid_geometry", "_invalid_uvs", "_quadblock", "_triblock"]:
                 if obj.name.endswith(suffix):
                     obj.name = obj.name.replace(suffix, "")
         self.report({'INFO'}, "Names reset.")
@@ -147,12 +148,16 @@ class OBJECT_OT_ResetName(bpy.types.Operator):
 
 
 class OBJECT_OT_RemoveInvalidData(bpy.types.Operator):
-    """Delete objects marked as invalid (name ends with '_invalid')."""
+    """Delete objects marked as invalid by geometry or UVs."""
     bl_idname = "geometry.remove_invalid_data"
     bl_label = "Remove Invalid Data"
 
     def execute(self, context):
-        invalid_objects = [obj for obj in bpy.data.objects if obj.name.endswith("_invalid")]
+        # Se buscan objetos que tengan los sufijos de geometría o UVs inválidas.
+        invalid_objects = [
+            obj for obj in bpy.data.objects
+            if obj.name.endswith("_invalid_geometry") or obj.name.endswith("_invalid_uvs")
+        ]
         count = len(invalid_objects)
         for obj in invalid_objects:
             bpy.data.objects.remove(obj, do_unlink=True)
