@@ -220,7 +220,7 @@ def register():
     bpy.types.Scene.transmission_color = bpy.props.FloatVectorProperty(
         name="Transmission Color",
         subtype='COLOR',
-        default=(0.00598722, 1, 0.134632),
+        default=(1.0, 1.0, 1.0),
         min=0.0, max=1.0,
         description="Transmission color",
         update=update_transmission_color
