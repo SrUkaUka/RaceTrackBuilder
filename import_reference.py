@@ -117,7 +117,7 @@ def create_camera_with_cube(target_object):
 
     # Crear el cubo y posicionarlo relativo al objeto importado
     cube_x = object_location.x - 2.5  
-    cube_z = object_location.z + 2.0  
+    cube_z = object_location.z + 0.5  
     bpy.ops.mesh.primitive_cube_add(size=0.3, location=(cube_x, object_location.y, cube_z))
     mesh_object = bpy.context.object
     mesh_object.name = cube_name
@@ -146,7 +146,7 @@ def create_camera_with_cube(target_object):
 
     # Crear la cámara
     camera_x = cube_x + 2.8 
-    camera_z = object_location.z  
+    camera_z = object_location.z - 1.5  
     bpy.ops.object.camera_add(location=(camera_x, object_location.y, camera_z))
     camera = bpy.context.object
     camera.name = "Camera_Interna"
