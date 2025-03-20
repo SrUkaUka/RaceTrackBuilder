@@ -1,7 +1,10 @@
 import bpy
 import bmesh
+import math
+import mathutils
 
 
+# Panel principal en el UV/Image Editor
 class UVResetTexturePanel(bpy.types.Panel):
     bl_label = "UV Tools"
     bl_idname = "UV_PT_reset_texture"
@@ -11,66 +14,221 @@ class UVResetTexturePanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        box = layout.box()
 
-        # Section: Reset Texture
-        box_reset = layout.box()
-        box_reset.label(text="Reset Texture:")
-        box_reset.operator("uv.reset", text="Reset Texture")
+        # Reset Texture: llama al operador nativo de Blender
+        box.operator("uv.reset", text="Reset Texture")
 
-        # Section: Rotate
-        box_rotate = layout.box()
-        box_rotate.label(text="Rotation:")
-        row = box_rotate.row(align=True)
-        row.operator("uv.textools_island_rotate_90", text="Rotate -90°")
-        row.operator("uv.textools_island_rotate_minus_90", text="Rotate 90°")
+        # Rotate Buttons
+        box.label(text="Rotation:")
+        row = box.row(align=True)
+        row.operator("uv.textools_island_rotate_90", text="Rotate 90°")
+        row.operator("uv.textools_island_rotate_minus_90", text="Rotate -90°")
 
-        # Section: Mirror
-        box_mirror = layout.box()
-        box_mirror.label(text="Mirror:")
-        row = box_mirror.row(align=True)
-        row.operator("uv.textools_island_mirror_v", text="Mirror H")
-        row.operator("uv.textools_island_mirror_h", text="Mirror V")
+        # Mirror Buttons
+        box.separator()
+        box.label(text="Mirror:")
+        row = box.row(align=True)
+        row.operator("uv.textools_island_mirror_v", text="Mirror V")
+        row.operator("uv.textools_island_mirror_h", text="Mirror H")
 
-        # Section: Fill
-        box_fill = layout.box()
-        box_fill.operator("uv.textools_uv_fill", text="Fill")
+        # Fill Button
+        box.separator()
+        box.operator("uv.textools_uv_fill", text="Fill")
 
-        # Sección: Move UVs
-        box_move = layout.box()
-        box_move.label(text="Move UVs:")
-        box_move.prop(context.scene, "uv_offset_value", expand=True)
-        row = box_move.row(align=True)
-        row.operator("uv.move_uv", text="", icon='TRIA_UP').direction = 'FRONT'
-        row.operator("uv.move_uv", text="", icon='TRIA_DOWN').direction = 'BACK'
-        row = box_move.row(align=True)
-        row.operator("uv.move_uv", text="", icon='TRIA_LEFT').direction = 'LEFT'
-        row.operator("uv.move_uv", text="", icon='TRIA_RIGHT').direction = 'RIGHT'
+        # Move UVs
+        box.separator()
+        box.label(text="Move UVs:")
+        box.prop(context.scene, "uv_offset_value", expand=True)
 
-        # Section: Scale UVs to Pixels
-        box_scale = layout.box()
-        box_scale.label(text="Scale UVs to Pixels:")
-        row = box_scale.row(align=True)
-        # Uses columns and rows
-        col = row.column(align=True)
-        for size in [16, 32, 64]:
-            col.operator("uv.scale_to_pixels", text=f"Scale to {size}px").target_pixels = str(size)
-        col = row.column(align=True)
-        for size in [128, 256]:
-            col.operator("uv.scale_to_pixels", text=f"Scale to {size}px").target_pixels = str(size)
+        row = box.row(align=True)
+        row.operator("uv.move_uv", text="Front").direction = 'FRONT'
+        row.operator("uv.move_uv", text="Back").direction = 'BACK'
 
-        # Section: Move to Top-Left
-        box_top_left = layout.box()
-        box_top_left.operator("uv.move_to_top_left", text="Move to Top Left")
+        row = box.row(align=True)
+        row.operator("uv.move_uv", text="Left").direction = 'LEFT'
+        row.operator("uv.move_uv", text="Right").direction = 'RIGHT'
 
-        # Section: Align
-        box_align = layout.box()
-        box_align.label(text="Align:")
-        row = box_align.row(align=True)
+        # Scale UVs
+        box.separator()
+        box.label(text="Scale UVs to Pixels:")
+        for size in [16, 32, 64, 128, 256]:
+            box.operator("uv.scale_to_pixels", text=f"Scale to {size}px").target_pixels = str(size)
+
+        # Move to Top-Left Button
+        box.separator()
+        box.operator("uv.move_to_top_left", text="Move to Top Left")
+        
+        # Align Operators
+        box.separator()
+        box.label(text="Align:")
+        row = box.row(align=True)
         row.operator("uv.align_axis", text="Align X").axis = 'X'
         row.operator("uv.align_axis", text="Align Y").axis = 'Y'
 
 
-# Operator to move uvs
+# Operador para rotar 90° la isla UV
+class UVIslandRotate90Operator(bpy.types.Operator):
+    bl_idname = "uv.textools_island_rotate_90"
+    bl_label = "Rotate UV Island 90°"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        obj = context.active_object
+        bm = bmesh.from_edit_mesh(obj.data)
+        uv_layer = bm.loops.layers.uv.active
+        if not uv_layer:
+            self.report({'ERROR'}, "No UV map found")
+            return {'CANCELLED'}
+
+        uvs = [loop[uv_layer].uv for face in bm.faces if face.select for loop in face.loops]
+        if not uvs:
+            self.report({'ERROR'}, "No UVs selected")
+            return {'CANCELLED'}
+
+        center = mathutils.Vector((sum(uv[0] for uv in uvs) / len(uvs),
+                                     sum(uv[1] for uv in uvs) / len(uvs)))
+        angle = math.radians(90)
+        cos_angle = math.cos(angle)
+        sin_angle = math.sin(angle)
+        for uv in uvs:
+            vec = uv - center
+            x_new = vec.x * cos_angle - vec.y * sin_angle
+            y_new = vec.x * sin_angle + vec.y * cos_angle
+            uv[0] = center.x + x_new
+            uv[1] = center.y + y_new
+
+        bmesh.update_edit_mesh(obj.data)
+        return {'FINISHED'}
+
+
+# Operador para rotar -90° la isla UV
+class UVIslandRotateMinus90Operator(bpy.types.Operator):
+    bl_idname = "uv.textools_island_rotate_minus_90"
+    bl_label = "Rotate UV Island -90°"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        obj = context.active_object
+        bm = bmesh.from_edit_mesh(obj.data)
+        uv_layer = bm.loops.layers.uv.active
+        if not uv_layer:
+            self.report({'ERROR'}, "No UV map found")
+            return {'CANCELLED'}
+
+        uvs = [loop[uv_layer].uv for face in bm.faces if face.select for loop in face.loops]
+        if not uvs:
+            self.report({'ERROR'}, "No UVs selected")
+            return {'CANCELLED'}
+
+        center = mathutils.Vector((sum(uv[0] for uv in uvs) / len(uvs),
+                                     sum(uv[1] for uv in uvs) / len(uvs)))
+        angle = math.radians(-90)
+        cos_angle = math.cos(angle)
+        sin_angle = math.sin(angle)
+        for uv in uvs:
+            vec = uv - center
+            x_new = vec.x * cos_angle - vec.y * sin_angle
+            y_new = vec.x * sin_angle + vec.y * cos_angle
+            uv[0] = center.x + x_new
+            uv[1] = center.y + y_new
+
+        bmesh.update_edit_mesh(obj.data)
+        return {'FINISHED'}
+
+
+# Operador para espejar la isla UV verticalmente (reflejo en U)
+class UVIslandMirrorVOperator(bpy.types.Operator):
+    bl_idname = "uv.textools_island_mirror_v"
+    bl_label = "Mirror UV Island Vertically"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        obj = context.active_object
+        bm = bmesh.from_edit_mesh(obj.data)
+        uv_layer = bm.loops.layers.uv.active
+        if not uv_layer:
+            self.report({'ERROR'}, "No UV map found")
+            return {'CANCELLED'}
+
+        uvs = [loop[uv_layer].uv for face in bm.faces if face.select for loop in face.loops]
+        if not uvs:
+            self.report({'ERROR'}, "No UVs selected")
+            return {'CANCELLED'}
+
+        center_x = sum(uv[0] for uv in uvs) / len(uvs)
+        for uv in uvs:
+            uv[0] = 2 * center_x - uv[0]
+        bmesh.update_edit_mesh(obj.data)
+        return {'FINISHED'}
+
+
+# Operador para espejar la isla UV horizontalmente (reflejo en V)
+class UVIslandMirrorHOperator(bpy.types.Operator):
+    bl_idname = "uv.textools_island_mirror_h"
+    bl_label = "Mirror UV Island Horizontally"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        obj = context.active_object
+        bm = bmesh.from_edit_mesh(obj.data)
+        uv_layer = bm.loops.layers.uv.active
+        if not uv_layer:
+            self.report({'ERROR'}, "No UV map found")
+            return {'CANCELLED'}
+
+        uvs = [loop[uv_layer].uv for face in bm.faces if face.select for loop in face.loops]
+        if not uvs:
+            self.report({'ERROR'}, "No UVs selected")
+            return {'CANCELLED'}
+
+        center_y = sum(uv[1] for uv in uvs) / len(uvs)
+        for uv in uvs:
+            uv[1] = 2 * center_y - uv[1]
+        bmesh.update_edit_mesh(obj.data)
+        return {'FINISHED'}
+
+
+# Operador para escalar y trasladar la isla UV para que ocupe el área (0 a 1)
+class UVIslandFillOperator(bpy.types.Operator):
+    bl_idname = "uv.textools_uv_fill"
+    bl_label = "Fill UV Island"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        obj = context.active_object
+        bm = bmesh.from_edit_mesh(obj.data)
+        uv_layer = bm.loops.layers.uv.active
+        if not uv_layer:
+            self.report({'ERROR'}, "No UV map found")
+            return {'CANCELLED'}
+
+        uvs = [loop[uv_layer].uv for face in bm.faces if face.select for loop in face.loops]
+        if not uvs:
+            self.report({'ERROR'}, "No UVs selected")
+            return {'CANCELLED'}
+
+        min_u = min(uv[0] for uv in uvs)
+        max_u = max(uv[0] for uv in uvs)
+        min_v = min(uv[1] for uv in uvs)
+        max_v = max(uv[1] for uv in uvs)
+
+        width = max_u - min_u
+        height = max_v - min_v
+
+        if width == 0 or height == 0:
+            self.report({'ERROR'}, "Invalid UV bounds")
+            return {'CANCELLED'}
+
+        for uv in uvs:
+            uv[0] = (uv[0] - min_u) / width
+            uv[1] = (uv[1] - min_v) / height
+
+        bmesh.update_edit_mesh(obj.data)
+        return {'FINISHED'}
+
+
+# Operador para mover UVs
 class MoveUVOperator(bpy.types.Operator):
     bl_idname = "uv.move_uv"
     bl_label = "Move UV"
@@ -124,7 +282,7 @@ class MoveUVOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# Operator to scale UVs to specific dimensions
+# Operador para escalar UVs a un tamaño específico
 class UVScaleToPixelsOperator(bpy.types.Operator):
     bl_idname = "uv.scale_to_pixels"
     bl_label = "Scale UV to Pixels"
@@ -151,22 +309,17 @@ class UVScaleToPixelsOperator(bpy.types.Operator):
             image_size = max(tex.image.size[0], 1)
 
         uvs = [loop[uv_layer].uv for face in bm.faces if face.select for loop in face.loops]
-
         if not uvs:
             self.report({'ERROR'}, "No UVs selected")
             return {'CANCELLED'}
 
         min_u, max_u = min(uv[0] for uv in uvs), max(uv[0] for uv in uvs)
         min_v, max_v = min(uv[1] for uv in uvs), max(uv[1] for uv in uvs)
-
         uv_width = (max_u - min_u) * image_size
         uv_height = (max_v - min_v) * image_size
-
         target_size = int(self.target_pixels)
-
         scale_factor_u = target_size / uv_width if uv_width > 0 else 1
         scale_factor_v = target_size / uv_height if uv_height > 0 else 1
-
         center_u = (min_u + max_u) / 2
         center_v = (min_v + max_v) / 2
 
@@ -178,7 +331,7 @@ class UVScaleToPixelsOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# Operator to move UVs to Top left corner
+# Operador para mover UVs a la esquina superior izquierda
 class MoveUVsTopLeftOperator(bpy.types.Operator):
     bl_idname = "uv.move_to_top_left"
     bl_label = "Move UVs to Top Left"
@@ -194,14 +347,12 @@ class MoveUVsTopLeftOperator(bpy.types.Operator):
             return {'CANCELLED'}
 
         uvs = [loop[uv_layer].uv for face in bm.faces if face.select for loop in face.loops]
-
         if not uvs:
             self.report({'ERROR'}, "No UVs selected")
             return {'CANCELLED'}
 
         min_u = min(uv[0] for uv in uvs)
         max_v = max(uv[1] for uv in uvs)
-
         move_u = -min_u
         move_v = 1.0 - max_v
 
@@ -213,7 +364,7 @@ class MoveUVsTopLeftOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# Operator to Align uvs S+X+0 o S+Y+0
+# Operador Align
 class UVAlignAxisOperator(bpy.types.Operator):
     bl_idname = "uv.align_axis"
     bl_label = "Align Axis"
@@ -221,8 +372,8 @@ class UVAlignAxisOperator(bpy.types.Operator):
 
     axis: bpy.props.EnumProperty(
         items=[
-            ('X', "X", "Ejecuta S+X+0"),
-            ('Y', "Y", "Ejecuta S+Y+0")
+            ('X', "X", "Align along X"),
+            ('Y', "Y", "Align along Y")
         ]
     )
 
@@ -234,9 +385,14 @@ class UVAlignAxisOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# Registro
+# Registro de clases y propiedades
 def register():
     bpy.utils.register_class(UVResetTexturePanel)
+    bpy.utils.register_class(UVIslandRotate90Operator)
+    bpy.utils.register_class(UVIslandRotateMinus90Operator)
+    bpy.utils.register_class(UVIslandMirrorVOperator)
+    bpy.utils.register_class(UVIslandMirrorHOperator)
+    bpy.utils.register_class(UVIslandFillOperator)
     bpy.utils.register_class(MoveUVOperator)
     bpy.utils.register_class(UVScaleToPixelsOperator)
     bpy.utils.register_class(MoveUVsTopLeftOperator)
@@ -251,6 +407,11 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(UVResetTexturePanel)
+    bpy.utils.unregister_class(UVIslandRotate90Operator)
+    bpy.utils.unregister_class(UVIslandRotateMinus90Operator)
+    bpy.utils.unregister_class(UVIslandMirrorVOperator)
+    bpy.utils.unregister_class(UVIslandMirrorHOperator)
+    bpy.utils.unregister_class(UVIslandFillOperator)
     bpy.utils.unregister_class(MoveUVOperator)
     bpy.utils.unregister_class(UVScaleToPixelsOperator)
     bpy.utils.unregister_class(MoveUVsTopLeftOperator)
