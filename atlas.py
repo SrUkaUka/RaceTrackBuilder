@@ -404,57 +404,71 @@ class ChangeTextureColorsOperator(Operator, ImportHelper):
 
 
 # ====================================================
-# Propiedades de la escena
+# Funciones para registrar y eliminar propiedades del escenario
 # ====================================================
-bpy.types.Scene.atlas_size = EnumProperty(
-    name="Atlas Size",
-    items=[('64', '64x64 (16bpp)', ''), ('128', '128x128 (8bpp)', ''), ('256', '256x256 (4bpp)', '')],
-    default='256'
-)
-bpy.types.Scene.atlas_colors = IntProperty(
-    name="Number of Colors",
-    default=16,
-    min=1,
-    max=256
-)
+def register_properties():
+    bpy.types.Scene.atlas_size = EnumProperty(
+        name="Atlas Size",
+        items=[('64', '64x64 (16bpp)', ''), ('128', '128x128 (8bpp)', ''), ('256', '256x256 (4bpp)', '')],
+        default='256'
+    )
+    bpy.types.Scene.atlas_colors = IntProperty(
+        name="Number of Colors",
+        default=16,
+        min=1,
+        max=256
+    )
+    bpy.types.Scene.use_base_16 = BoolProperty(name="16", default=False)
+    bpy.types.Scene.use_base_32 = BoolProperty(name="32", default=False)
+    bpy.types.Scene.use_base_64 = BoolProperty(name="64", default=False)
+    bpy.types.Scene.use_base_128 = BoolProperty(name="128", default=False)
+    bpy.types.Scene.use_base_256 = BoolProperty(name="256", default=False)
+    bpy.types.Scene.base_16_second = EnumProperty(
+        name="Segunda dimensión para 16",
+        items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
+        default='16'
+    )
+    bpy.types.Scene.base_32_second = EnumProperty(
+        name="Segunda dimensión para 32",
+        items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
+        default='16'
+    )
+    bpy.types.Scene.base_64_second = EnumProperty(
+        name="Segunda dimensión para 64",
+        items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
+        default='16'
+    )
+    bpy.types.Scene.base_128_second = EnumProperty(
+        name="Segunda dimensión para 128",
+        items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
+        default='16'
+    )
+    bpy.types.Scene.base_256_second = EnumProperty(
+        name="Segunda dimensión para 256",
+        items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
+        default='16'
+    )
 
-# Propiedades para el panel de combinaciones:
-bpy.types.Scene.use_base_16 = BoolProperty(name="16", default=False)
-bpy.types.Scene.use_base_32 = BoolProperty(name="32", default=False)
-bpy.types.Scene.use_base_64 = BoolProperty(name="64", default=False)
-bpy.types.Scene.use_base_128 = BoolProperty(name="128", default=False)
-bpy.types.Scene.use_base_256 = BoolProperty(name="256", default=False)
+def unregister_properties():
+    del bpy.types.Scene.atlas_size
+    del bpy.types.Scene.atlas_colors
+    del bpy.types.Scene.use_base_16
+    del bpy.types.Scene.use_base_32
+    del bpy.types.Scene.use_base_64
+    del bpy.types.Scene.use_base_128
+    del bpy.types.Scene.use_base_256
+    del bpy.types.Scene.base_16_second
+    del bpy.types.Scene.base_32_second
+    del bpy.types.Scene.base_64_second
+    del bpy.types.Scene.base_128_second
+    del bpy.types.Scene.base_256_second
 
-bpy.types.Scene.base_16_second = EnumProperty(
-    name="Segunda dimensión para 16",
-    items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
-    default='16'
-)
-bpy.types.Scene.base_32_second = EnumProperty(
-    name="Segunda dimensión para 32",
-    items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
-    default='16'
-)
-bpy.types.Scene.base_64_second = EnumProperty(
-    name="Segunda dimensión para 64",
-    items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
-    default='16'
-)
-bpy.types.Scene.base_128_second = EnumProperty(
-    name="Segunda dimensión para 128",
-    items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
-    default='16'
-)
-bpy.types.Scene.base_256_second = EnumProperty(
-    name="Segunda dimensión para 256",
-    items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
-    default='16'
-)
 
 # ====================================================
 # Registro en Blender
 # ====================================================
 def register():
+    register_properties()
     bpy.utils.register_class(TextureCombinationPanel)
     bpy.utils.register_class(GenerateCombinationAtlasOperator)
     bpy.utils.register_class(SelectTexturesOperator)
@@ -467,17 +481,7 @@ def unregister():
     bpy.utils.unregister_class(SelectTexturesOperator)
     bpy.utils.unregister_class(NumerateTexturesOperator)
     bpy.utils.unregister_class(ChangeTextureColorsOperator)
-    del bpy.types.Scene.atlas_size
-    del bpy.types.Scene.atlas_colors
-    del bpy.types.Scene.use_base_16
-    del bpy.types.Scene.use_base_32
-    del bpy.types.Scene.use_base_64
-    del bpy.types.Scene.use_base_128
-    del bpy.types.Scene.use_base_256
-    del bpy.types.Scene.base_16_second
-    del bpy.types.Scene.base_32_second
-    del bpy.types.Scene.base_64_second
-    del bpy.types.Scene.base_128_second
+    unregister_properties()
 
 if __name__ == "__main__":
     register()
