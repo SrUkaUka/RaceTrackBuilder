@@ -177,7 +177,7 @@ class SpawnPanel(bpy.types.Panel):
         pos = driver_spawns[selected_driver]["pos"]
         rot = driver_spawns[selected_driver]["rot"]
 
-        layout.label(text=f"Position: X={pos[0]:.2f}, Y={pos[1]:.2f}, Z={pos[2]:.2f}")
+        layout.label(text=f"Position: X={pos[0]:.3f}, Y={pos[1]:.3f}, Z={pos[2]:.3f}")
         layout.label(text=f"Rotation: X={rot[0]:.2f}, Y={rot[1]:.3f}, Z={rot[2]:.3f}")
 
         layout.separator()
