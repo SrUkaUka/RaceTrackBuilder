@@ -33,8 +33,7 @@ class ImportProperties(bpy.types.PropertyGroup):
             ('Ngin', 'Ngin', 'Import Ngin.fbx'),
             ('Dingodile', 'Dingodile', 'Import Dingodile.fbx'),
             ('Polar', 'Polar', 'Import Polar.fbx'),
-            ('Pura', 'Pura', 'Import Pura.fbx'),
-            ('Other', 'Other', 'Import any other file')
+            ('Pura', 'Pura', 'Import Pura.fbx')
         ]
     )
 
