@@ -11,6 +11,7 @@ bl_info = {
 import bpy
 
 # Importar cada uno de los scripts de herramientas
+from . import toggle_box
 from . import add_quadblock_triblock
 from . import extrude_separated_objects
 from . import snap_vertex_to_closest
@@ -37,10 +38,12 @@ from . import turbo
 from . import path_preset
 from . import path
 from . import import_reference
+from . import atlas
 
 def register():
     # Registrar todos los módulos
     modules = [
+        toggle_box,
         add_quadblock_triblock,
         extrude_separated_objects,
         snap_vertex_to_closest,
@@ -67,6 +70,7 @@ def register():
         path_preset,
         path,
         import_reference,
+        atlas,
     ]
     
     for module in modules:
@@ -80,6 +84,7 @@ def register():
 def unregister():
     # Desregistrar todos los módulos
     modules = [
+        toggle_box,
         add_quadblock_triblock,
         extrude_separated_objects,
         snap_vertex_to_closest,
@@ -106,6 +111,7 @@ def unregister():
         path_preset,
         path,
         import_reference,
+        atlas,
     ]
     
     for module in modules:
