@@ -23,31 +23,47 @@ class TextureCombinationPanel(Panel):
         layout.label(text="Select Atlas Size:")
         layout.prop(scene, "atlas_size")
         layout.prop(scene, "atlas_colors", text="Number of Colors")
-
-        # Sección: Selección de la dimensión base
+        
+        layout.separator()
         layout.label(text="Selecciona Dimensiones Base:")
-        layout.prop(scene, "use_base_16", text="16")
-        layout.prop(scene, "use_base_32", text="32")
-        layout.prop(scene, "use_base_64", text="64")
-        layout.prop(scene, "use_base_128", text="128")
-        layout.prop(scene, "use_base_256", text="256")  # Si se requiere base 256
 
-        # Para cada base activada se muestra la opción de seleccionar la dimensión secundaria.
+        # Fila para base 16
+        row = layout.row(align=True)
+        row.prop(scene, "use_base_16", text="16")
         if scene.use_base_16:
-            layout.label(text="Para base 16, elige dimensión secundaria:")
-            layout.prop(scene, "base_16_second", text="")
+            row.prop(scene, "base_16_second", text="Secundaria")
+
+        # Fila para base 32
+        row = layout.row(align=True)
+        row.prop(scene, "use_base_32", text="32")
         if scene.use_base_32:
-            layout.label(text="Para base 32, elige dimensión secundaria:")
-            layout.prop(scene, "base_32_second", text="")
+            row.prop(scene, "base_32_second", text="Secundaria")
+
+        # Fila para base 64
+        row = layout.row(align=True)
+        row.prop(scene, "use_base_64", text="64")
         if scene.use_base_64:
-            layout.label(text="Para base 64, elige dimensión secundaria:")
-            layout.prop(scene, "base_64_second", text="")
+            row.prop(scene, "base_64_second", text="Secundaria")
+
+        # Fila para base 128
+        row = layout.row(align=True)
+        row.prop(scene, "use_base_128", text="128")
         if scene.use_base_128:
-            layout.label(text="Para base 128, elige dimensión secundaria:")
-            layout.prop(scene, "base_128_second", text="")
+            row.prop(scene, "base_128_second", text="Secundaria")
+
+        # Fila para base 256
+        row = layout.row(align=True)
+        row.prop(scene, "use_base_256", text="256")
         if scene.use_base_256:
-            layout.label(text="Para base 256, elige dimensión secundaria:")
-            layout.prop(scene, "base_256_second", text="")
+            row.prop(scene, "base_256_second", text="Secundaria")
+
+        layout.separator()
+        # Opción "Other" para dimensiones personalizadas
+        layout.prop(scene, "use_custom_dimensions", text="Other (Custom Dimensions)")
+        if scene.use_custom_dimensions:
+            row = layout.row(align=True)
+            row.prop(scene, "custom_width", text="Width")
+            row.prop(scene, "custom_height", text="Height")
 
         layout.separator()
         # Botón para generar atlas según combinaciones seleccionadas (abre explorador de archivos)
@@ -56,8 +72,7 @@ class TextureCombinationPanel(Panel):
         # Botón para seleccionar texturas manualmente y generar atlas dinámico
         layout.operator("atlas.select_textures", text="Select Textures (Dynamic)")
         layout.separator()
-        # Botón para renombrar texturas
-        layout.operator("atlas.numerate_textures", text="Numerate Textures")
+        # Se ha quitado el botón Numerate Textures
         layout.separator()
         # Botón para cambiar el número de colores de una imagen seleccionada (nuevo flujo)
         layout.operator("atlas.change_texture_colors", text="Change Texture Colors")
@@ -107,6 +122,9 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
             combinations.append(f"128x{scene.base_128_second}")
         if scene.use_base_256:
             combinations.append(f"256x{scene.base_256_second}")
+        # Incluir opción personalizada si está activada
+        if scene.use_custom_dimensions:
+            combinations.append(f"{scene.custom_width}x{scene.custom_height}")
 
         if not combinations:
             self.report({'WARNING'}, "No se ha seleccionado ninguna dimensión base!")
@@ -409,7 +427,7 @@ class ChangeTextureColorsOperator(Operator, ImportHelper):
 def register_properties():
     bpy.types.Scene.atlas_size = EnumProperty(
         name="Atlas Size",
-        items=[('64', '64x64 (16bpp)', ''), ('128', '128x128 (8bpp)', ''), ('256', '256x256 (4bpp)', '')],
+        items=[('64', '64x64', ''), ('128', '128x128', ''), ('256', '256x256', '')],
         default='256'
     )
     bpy.types.Scene.atlas_colors = IntProperty(
@@ -448,6 +466,10 @@ def register_properties():
         items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
         default='16'
     )
+    # Propiedades para la opción "Other" (dimensiones personalizadas)
+    bpy.types.Scene.use_custom_dimensions = BoolProperty(name="Other", default=False)
+    bpy.types.Scene.custom_width = IntProperty(name="Custom Width", default=64, min=1)
+    bpy.types.Scene.custom_height = IntProperty(name="Custom Height", default=64, min=1)
 
 def unregister_properties():
     del bpy.types.Scene.atlas_size
@@ -462,6 +484,9 @@ def unregister_properties():
     del bpy.types.Scene.base_64_second
     del bpy.types.Scene.base_128_second
     del bpy.types.Scene.base_256_second
+    del bpy.types.Scene.use_custom_dimensions
+    del bpy.types.Scene.custom_width
+    del bpy.types.Scene.custom_height
 
 
 # ====================================================
