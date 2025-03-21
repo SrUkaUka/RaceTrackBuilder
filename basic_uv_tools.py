@@ -407,15 +407,17 @@ def register():
         ],
         default='64'
     )
-    bpy.types.Scene.uv_offset_custom_x = bpy.props.FloatProperty(
+    bpy.types.Scene.uv_offset_custom_x = bpy.props.IntProperty(
         name="Custom Offset X",
-        default=0.0,
-        description="Custom offset in pixels for X (enter whole number)"
+        default=0,
+        min=0,
+        description="Custom offset in pixels for X (only whole, positive numbers)"
     )
-    bpy.types.Scene.uv_offset_custom_y = bpy.props.FloatProperty(
+    bpy.types.Scene.uv_offset_custom_y = bpy.props.IntProperty(
         name="Custom Offset Y",
-        default=0.0,
-        description="Custom offset in pixels for Y (enter whole number)"
+        default=0,
+        min=0,
+        description="Custom offset in pixels for Y (only whole, positive numbers)"
     )
 
     # Propiedades para escalar UVs
