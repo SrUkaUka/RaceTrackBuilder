@@ -22,7 +22,16 @@ class TextureCombinationPanel(Panel):
 
         layout.label(text="Select Atlas Size:")
         layout.prop(scene, "atlas_size")
-        layout.prop(scene, "atlas_colors", text="Number of Colors")
+        # Se añade opción para tamaño de atlas personalizado
+        layout.prop(scene, "use_custom_atlas_size", text="Other (Custom Atlas Size)")
+        if scene.use_custom_atlas_size:
+            row = layout.row(align=True)
+            row.prop(scene, "custom_atlas_width", text="Width")
+            row.prop(scene, "custom_atlas_height", text="Height")
+            
+        row = layout.row(align=True)
+        row.prop(scene, "atlas_colors", text="Number of Colors")
+        row.prop(scene, "use_more_colors", text="More Colors")
         
         layout.separator()
         layout.label(text="Selecciona Dimensiones Base:")
@@ -74,7 +83,7 @@ class TextureCombinationPanel(Panel):
         layout.separator()
         # Se ha quitado el botón Numerate Textures
         layout.separator()
-        # Botón para cambiar el número de colores de una imagen seleccionada (nuevo flujo)
+        # Botón para cambiar el número de colores de una imagen (o imágenes) seleccionada(s)
         layout.operator("atlas.change_texture_colors", text="Change Texture Colors")
 
 
@@ -105,10 +114,18 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
 
     def execute(self, context):
         scene = context.scene
-        atlas_size = int(scene.atlas_size)
         atlas_colors = int(scene.atlas_colors)
         file_path = self.filepath
         folder_path = os.path.dirname(file_path)
+
+        # Determinar dimensiones del atlas (cuadrado o personalizado)
+        if scene.use_custom_atlas_size:
+            atlas_width = scene.custom_atlas_width
+            atlas_height = scene.custom_atlas_height
+        else:
+            atlas_size = int(scene.atlas_size)
+            atlas_width = atlas_size
+            atlas_height = atlas_size
 
         # Recoger las combinaciones activas (por ejemplo, "16x32")
         combinations = []
@@ -131,7 +148,7 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
             return {'CANCELLED'}
 
         texture_files = self.get_texture_files(folder_path)
-        self.create_texture_atlases(atlas_size, texture_files, combinations, atlas_colors, scene)
+        self.create_texture_atlases(atlas_width, atlas_height, texture_files, combinations, atlas_colors, scene)
         self.report({'INFO'}, f"Atlas generados para combinaciones: {', '.join(combinations)}")
         return {'FINISHED'}
 
@@ -142,7 +159,7 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
                          if f.lower().endswith(('.png', '.jpg'))]
         return sorted(texture_files)
 
-    def create_texture_atlases(self, atlas_size, texture_files, allowed_combinations, atlas_colors, scene):
+    def create_texture_atlases(self, atlas_width, atlas_height, texture_files, allowed_combinations, atlas_colors, scene):
         """
         Agrupa las texturas según su combinación "ancho x alto" y crea un atlas por cada grupo.
         Solo se procesan aquellas imágenes cuya combinación (por ejemplo, "16x32") esté permitida.
@@ -167,7 +184,7 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
                 continue
             atlas_index = 1
             x_offset, y_offset = 0, 0
-            atlas_image = Image.new("RGBA", (atlas_size, atlas_size), (0, 0, 0, 0))
+            atlas_image = Image.new("RGBA", (atlas_width, atlas_height), (0, 0, 0, 0))
             used_textures = set()
             for texture_path in images:
                 if texture_path in used_textures:
@@ -177,17 +194,17 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
                 if texture is None:
                     continue
                 img_width, img_height = texture.size
-                if x_offset + img_width > atlas_size:
+                if x_offset + img_width > atlas_width:
                     x_offset = 0
                     y_offset += img_height
-                if y_offset + img_height > atlas_size:
+                if y_offset + img_height > atlas_height:
                     atlas_output_path = self.get_unique_path(os.path.dirname(texture_files[0]),
                                                              f"texture_atlas_{comb}", ".png", atlas_index)
                     atlas_image.save(atlas_output_path)
                     print(f"✅ Atlas guardado: {atlas_output_path}")
                     self.load_texture_into_blender(atlas_output_path)
                     atlas_index += 1
-                    atlas_image = Image.new("RGBA", (atlas_size, atlas_size), (0, 0, 0, 0))
+                    atlas_image = Image.new("RGBA", (atlas_width, atlas_height), (0, 0, 0, 0))
                     x_offset, y_offset = 0, 0
                 atlas_image.paste(texture, (x_offset, y_offset), texture)
                 x_offset += img_width
@@ -247,13 +264,21 @@ class SelectTexturesOperator(Operator, ImportHelper):
             return {'CANCELLED'}
 
         scene = context.scene
-        atlas_size = int(scene.atlas_size)
         atlas_colors = int(scene.atlas_colors)
-        self.create_dynamic_atlas(atlas_size, selected_files, atlas_colors)
+        # Determinar dimensiones del atlas (cuadrado o personalizado)
+        if scene.use_custom_atlas_size:
+            atlas_width = scene.custom_atlas_width
+            atlas_height = scene.custom_atlas_height
+        else:
+            atlas_size = int(scene.atlas_size)
+            atlas_width = atlas_size
+            atlas_height = atlas_size
+
+        self.create_dynamic_atlas(atlas_width, atlas_height, selected_files, atlas_colors)
         self.report({'INFO'}, f"Atlas dinámico creado a partir de {len(selected_files)} texturas seleccionadas.")
         return {'FINISHED'}
 
-    def create_dynamic_atlas(self, atlas_size, texture_files, atlas_colors):
+    def create_dynamic_atlas(self, atlas_width, atlas_height, texture_files, atlas_colors):
         """
         Crea un atlas dinámico sin importar el tamaño original de cada textura.
         Se realiza un packing simple colocando las texturas en filas.
@@ -263,7 +288,7 @@ class SelectTexturesOperator(Operator, ImportHelper):
         x_offset, y_offset = 0, 0
         max_row_height = 0
         output_dir = os.path.dirname(texture_files[0])
-        atlas_image = Image.new("RGBA", (atlas_size, atlas_size), (0, 0, 0, 0))
+        atlas_image = Image.new("RGBA", (atlas_width, atlas_height), (0, 0, 0, 0))
 
         for texture_path in texture_files:
             texture = quantize_image(texture_path, atlas_colors)
@@ -271,18 +296,18 @@ class SelectTexturesOperator(Operator, ImportHelper):
                 continue
             img_width, img_height = texture.size
 
-            if x_offset + img_width > atlas_size:
+            if x_offset + img_width > atlas_width:
                 x_offset = 0
                 y_offset += max_row_height
                 max_row_height = 0
 
-            if y_offset + img_height > atlas_size:
+            if y_offset + img_height > atlas_height:
                 atlas_output_path = self.get_unique_path(output_dir, "texture_atlas_dynamic", ".png", atlas_index)
                 atlas_image.save(atlas_output_path)
                 print(f"✅ Atlas dinámico guardado: {atlas_output_path}")
                 self.load_texture_into_blender(atlas_output_path)
                 atlas_index += 1
-                atlas_image = Image.new("RGBA", (atlas_size, atlas_size), (0, 0, 0, 0))
+                atlas_image = Image.new("RGBA", (atlas_width, atlas_height), (0, 0, 0, 0))
                 x_offset, y_offset = 0, 0
                 max_row_height = 0
 
@@ -354,37 +379,52 @@ class NumerateTexturesOperator(Operator, ImportHelper):
 
 
 # ====================================================
-# NUEVO OPERADOR: Cambiar la cantidad de colores de una imagen seleccionada
+# NUEVO OPERADOR: Cambiar la cantidad de colores de una imagen o varias imágenes seleccionadas
 # ====================================================
 class ChangeTextureColorsOperator(Operator, ImportHelper):
-    """Cambia la cantidad de colores de una imagen seleccionada al número especificado, manteniendo mayor detalle"""
+    """Cambia la cantidad de colores de una imagen o de varias imágenes seleccionadas al número especificado, manteniendo mayor detalle"""
     bl_idname = "atlas.change_texture_colors"
     bl_label = "Change Texture Colors"
+    # Propiedades para selección simple o múltiple:
+    apply_to_many: BoolProperty(name="Apply to selected", default=False)
+    # Cuando se aplica a muchas, se usan estos atributos:
+    files: CollectionProperty(type=bpy.types.OperatorFileListElement)
+    directory: StringProperty(subtype='DIR_PATH')
+    # Si no se selecciona muchas, se usa:
     filter_glob: StringProperty(default="*.png;*.jpg;*.jpeg", options={'HIDDEN'})
 
     def execute(self, context):
         scene = context.scene
         atlas_colors = int(scene.atlas_colors)
-        file_path = self.filepath
+        # Si se aplica a muchas, se procesan todas las imágenes seleccionadas
+        if self.apply_to_many:
+            selected_files = [os.path.join(self.directory, f.name) for f in self.files]
+            if not selected_files:
+                self.report({'WARNING'}, "No se seleccionaron imágenes.")
+                return {'CANCELLED'}
+            for file_path in selected_files:
+                self.process_image(file_path, atlas_colors)
+            self.report({'INFO'}, f"Se procesaron {len(selected_files)} imágenes.")
+        else:
+            file_path = self.filepath
+            if not file_path:
+                self.report({'WARNING'}, "No se seleccionó ninguna imagen.")
+                return {'CANCELLED'}
+            self.process_image(file_path, atlas_colors)
+            self.report({'INFO'}, f"Imagen procesada y modificada: {file_path}")
+        return {'FINISHED'}
 
-        if not file_path:
-            self.report({'WARNING'}, "No se seleccionó ninguna imagen.")
-            return {'CANCELLED'}
-
+    def process_image(self, file_path, atlas_colors):
         # Se utiliza la función común de cuantización
         img_reduced = quantize_image(file_path, atlas_colors)
         if img_reduced is None:
-            self.report({'ERROR'}, "Error procesando la imagen.")
-            return {'CANCELLED'}
-
+            print(f"Error procesando {file_path}")
+            return
         # Guardar la imagen reducida en un archivo nuevo con un nombre modificado
         output_path = self.get_unique_path(os.path.dirname(file_path), "texture_quantized", ".png", 1)
         img_reduced.save(output_path)
-        self.report({'INFO'}, f"Imagen procesada y guardada en: {output_path}")
-
-        # Cargar la textura resultante en Blender y asignarla al objeto activo
+        print(f"✅ Imagen procesada y guardada en: {output_path}")
         self.load_texture_into_blender(output_path)
-        return {'FINISHED'}
 
     def get_unique_path(self, output_dir, base_name, ext, start_index):
         """Genera un nombre de archivo único para evitar sobrescribir archivos existentes."""
@@ -424,6 +464,11 @@ class ChangeTextureColorsOperator(Operator, ImportHelper):
 # ====================================================
 # Funciones para registrar y eliminar propiedades del escenario
 # ====================================================
+def update_atlas_colors(self, context):
+    # Si no se permite más colores, se fuerza el valor máximo a 256
+    if not self.use_more_colors and self.atlas_colors > 256:
+        self.atlas_colors = 256
+
 def register_properties():
     bpy.types.Scene.atlas_size = EnumProperty(
         name="Atlas Size",
@@ -434,8 +479,18 @@ def register_properties():
         name="Number of Colors",
         default=16,
         min=1,
-        max=256
+        max=1024,
+        update=update_atlas_colors
     )
+    bpy.types.Scene.use_more_colors = BoolProperty(
+        name="More Colors",
+        default=False
+    )
+    # Propiedades para tamaño de atlas personalizado
+    bpy.types.Scene.use_custom_atlas_size = BoolProperty(name="Other (Custom Atlas Size)", default=False)
+    bpy.types.Scene.custom_atlas_width = IntProperty(name="Atlas Width", default=256, min=1)
+    bpy.types.Scene.custom_atlas_height = IntProperty(name="Atlas Height", default=256, min=1)
+
     bpy.types.Scene.use_base_16 = BoolProperty(name="16", default=False)
     bpy.types.Scene.use_base_32 = BoolProperty(name="32", default=False)
     bpy.types.Scene.use_base_64 = BoolProperty(name="64", default=False)
@@ -474,6 +529,10 @@ def register_properties():
 def unregister_properties():
     del bpy.types.Scene.atlas_size
     del bpy.types.Scene.atlas_colors
+    del bpy.types.Scene.use_more_colors
+    del bpy.types.Scene.use_custom_atlas_size
+    del bpy.types.Scene.custom_atlas_width
+    del bpy.types.Scene.custom_atlas_height
     del bpy.types.Scene.use_base_16
     del bpy.types.Scene.use_base_32
     del bpy.types.Scene.use_base_64
