@@ -29,9 +29,7 @@ class TextureCombinationPanel(Panel):
             row.prop(scene, "custom_atlas_width", text="Width")
             row.prop(scene, "custom_atlas_height", text="Height")
             
-        row = layout.row(align=True)
-        row.prop(scene, "atlas_colors", text="Number of Colors")
-        row.prop(scene, "use_more_colors", text="More Colors")
+        layout.prop(scene, "atlas_colors", text="Number of Colors")
         
         layout.separator()
         layout.label(text="Selecciona Dimensiones Base:")
@@ -83,7 +81,7 @@ class TextureCombinationPanel(Panel):
         layout.separator()
         # Se ha quitado el botón Numerate Textures
         layout.separator()
-        # Botón para cambiar el número de colores de una imagen (o imágenes) seleccionada(s)
+        # Botón para cambiar el número de colores de una imagen seleccionada (nuevo flujo)
         layout.operator("atlas.change_texture_colors", text="Change Texture Colors")
 
 
@@ -379,52 +377,46 @@ class NumerateTexturesOperator(Operator, ImportHelper):
 
 
 # ====================================================
-# NUEVO OPERADOR: Cambiar la cantidad de colores de una imagen o varias imágenes seleccionadas
+# NUEVO OPERADOR: Cambiar la cantidad de colores de una o varias imágenes seleccionadas
 # ====================================================
 class ChangeTextureColorsOperator(Operator, ImportHelper):
-    """Cambia la cantidad de colores de una imagen o de varias imágenes seleccionadas al número especificado, manteniendo mayor detalle"""
+    """Cambia la cantidad de colores de una o varias imágenes seleccionadas al número especificado, manteniendo mayor detalle"""
     bl_idname = "atlas.change_texture_colors"
     bl_label = "Change Texture Colors"
-    # Propiedades para selección simple o múltiple:
-    apply_to_many: BoolProperty(name="Apply to selected", default=False)
-    # Cuando se aplica a muchas, se usan estos atributos:
+    filter_glob: StringProperty(default="*.png;*.jpg;*.jpeg", options={'HIDDEN'})
     files: CollectionProperty(type=bpy.types.OperatorFileListElement)
     directory: StringProperty(subtype='DIR_PATH')
-    # Si no se selecciona muchas, se usa:
-    filter_glob: StringProperty(default="*.png;*.jpg;*.jpeg", options={'HIDDEN'})
 
     def execute(self, context):
         scene = context.scene
         atlas_colors = int(scene.atlas_colors)
-        # Si se aplica a muchas, se procesan todas las imágenes seleccionadas
-        if self.apply_to_many:
+        
+        # Obtener la lista de archivos seleccionados
+        selected_files = []
+        if self.files:
             selected_files = [os.path.join(self.directory, f.name) for f in self.files]
-            if not selected_files:
-                self.report({'WARNING'}, "No se seleccionaron imágenes.")
-                return {'CANCELLED'}
-            for file_path in selected_files:
-                self.process_image(file_path, atlas_colors)
-            self.report({'INFO'}, f"Se procesaron {len(selected_files)} imágenes.")
-        else:
-            file_path = self.filepath
-            if not file_path:
-                self.report({'WARNING'}, "No se seleccionó ninguna imagen.")
-                return {'CANCELLED'}
-            self.process_image(file_path, atlas_colors)
-            self.report({'INFO'}, f"Imagen procesada y modificada: {file_path}")
-        return {'FINISHED'}
+        elif self.filepath:
+            selected_files = [self.filepath]
+            
+        if not selected_files:
+            self.report({'WARNING'}, "No se seleccionó ninguna imagen.")
+            return {'CANCELLED'}
 
-    def process_image(self, file_path, atlas_colors):
-        # Se utiliza la función común de cuantización
-        img_reduced = quantize_image(file_path, atlas_colors)
-        if img_reduced is None:
-            print(f"Error procesando {file_path}")
-            return
-        # Guardar la imagen reducida en un archivo nuevo con un nombre modificado
-        output_path = self.get_unique_path(os.path.dirname(file_path), "texture_quantized", ".png", 1)
-        img_reduced.save(output_path)
-        print(f"✅ Imagen procesada y guardada en: {output_path}")
-        self.load_texture_into_blender(output_path)
+        for file_path in selected_files:
+            # Se utiliza la función común de cuantización para cada imagen
+            img_reduced = quantize_image(file_path, atlas_colors)
+            if img_reduced is None:
+                self.report({'ERROR'}, f"Error procesando la imagen: {file_path}")
+                continue
+
+            # Guardar la imagen reducida en un archivo nuevo con un nombre único
+            output_path = self.get_unique_path(os.path.dirname(file_path), "texture_quantized", ".png", 1)
+            img_reduced.save(output_path)
+            self.report({'INFO'}, f"Imagen procesada y guardada en: {output_path}")
+
+            # Cargar la textura resultante en Blender y asignarla al objeto activo
+            self.load_texture_into_blender(output_path)
+        return {'FINISHED'}
 
     def get_unique_path(self, output_dir, base_name, ext, start_index):
         """Genera un nombre de archivo único para evitar sobrescribir archivos existentes."""
@@ -464,11 +456,6 @@ class ChangeTextureColorsOperator(Operator, ImportHelper):
 # ====================================================
 # Funciones para registrar y eliminar propiedades del escenario
 # ====================================================
-def update_atlas_colors(self, context):
-    # Si no se permite más colores, se fuerza el valor máximo a 256
-    if not self.use_more_colors and self.atlas_colors > 256:
-        self.atlas_colors = 256
-
 def register_properties():
     bpy.types.Scene.atlas_size = EnumProperty(
         name="Atlas Size",
@@ -479,12 +466,7 @@ def register_properties():
         name="Number of Colors",
         default=16,
         min=1,
-        max=1024,
-        update=update_atlas_colors
-    )
-    bpy.types.Scene.use_more_colors = BoolProperty(
-        name="More Colors",
-        default=False
+        max=256
     )
     # Propiedades para tamaño de atlas personalizado
     bpy.types.Scene.use_custom_atlas_size = BoolProperty(name="Other (Custom Atlas Size)", default=False)
@@ -529,7 +511,6 @@ def register_properties():
 def unregister_properties():
     del bpy.types.Scene.atlas_size
     del bpy.types.Scene.atlas_colors
-    del bpy.types.Scene.use_more_colors
     del bpy.types.Scene.use_custom_atlas_size
     del bpy.types.Scene.custom_atlas_width
     del bpy.types.Scene.custom_atlas_height
