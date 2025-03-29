@@ -145,6 +145,7 @@ class UV_OT_ExportObjSequence(bpy.types.Operator, bpy_extras.io_utils.ExportHelp
 
     # Instead of filename_ext we expect a folder, pero mantenemos el helper para usar el selector
     filename_ext = ".obj"
+    use_filter_folder = True  # Añadido para que se pueda seleccionar una carpeta
 
     def execute(self, context):
         global uvs_storage
