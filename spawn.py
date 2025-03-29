@@ -1,6 +1,7 @@
 import bpy
 import json
 import os
+import re
 from bpy_extras.io_utils import ExportHelper
 import math
 
@@ -8,12 +9,6 @@ import math
 driver_spawns = [
     {"pos": (0.0, 0.0, 0.0), "rot": (0.0, 0.0, 0.0)}
     for _ in range(8)
-]
-
-# Lista de nombres válidos de conductores
-VALID_DRIVER_NAMES = [
-    "cortex_driver", "crash_driver", "coco_driver", "tiny_driver",
-    "ngin_driver", "dingodile_driver", "polar_driver", "pura_driver"
 ]
 
 # Propiedad para seleccionar el driver y el objeto de referencia
@@ -44,10 +39,9 @@ class AssignSpawnOperator(bpy.types.Operator):
             self.report({'ERROR'}, "No object selected. Select an object in the viewport.")
             return {'CANCELLED'}
 
-        # Verifica si el nombre del objeto es válido
-        valid = any(obj.name.startswith(name) for name in VALID_DRIVER_NAMES)
-        if not valid:
-            self.report({'ERROR'}, f"Invalid object '{obj.name}'. Select a driver object (e.g., cortex_driver00).")
+        # Verifica si el nombre del objeto termina con el sufijo _driverXX (donde XX son dos dígitos)
+        if not re.search(r'_driver\d{2}$', obj.name):
+            self.report({'ERROR'}, f"Invalid object '{obj.name}'. Select a driver object (e.g., any_object_driver00).")
             return {'CANCELLED'}
 
         # Guardar posición (X, Y, Z)
@@ -178,7 +172,7 @@ class SpawnPanel(bpy.types.Panel):
         rot = driver_spawns[selected_driver]["rot"]
 
         layout.label(text=f"Position: X={pos[0]:.3f}, Y={pos[1]:.3f}, Z={pos[2]:.3f}")
-        layout.label(text=f"Rotation: X={rot[0]:.2f}, Y={rot[1]:.3f}, Z={rot[2]:.3f}")
+        layout.label(text=f"Rotation: X={rot[0]:.2f}, Y={rot[1]:.2f}, Z={rot[2]:.2f}")
 
         layout.separator()
         layout.operator("object.export_preset")
