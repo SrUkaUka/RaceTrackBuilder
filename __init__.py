@@ -39,6 +39,8 @@ from . import path_preset
 from . import path
 from . import import_reference
 from . import atlas
+from . import set_uv_frames
+from . import load_sequence
 
 def register():
     # Registrar todos los módulos
@@ -71,6 +73,8 @@ def register():
         path,
         import_reference,
         atlas,
+        set_uv_frames,
+        load_sequence,
     ]
     
     for module in modules:
@@ -112,6 +116,8 @@ def unregister():
         path,
         import_reference,
         atlas,
+        set_uv_frames,
+        load_sequence
     ]
     
     for module in modules:
