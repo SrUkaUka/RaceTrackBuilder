@@ -229,8 +229,21 @@ def selection_handler(scene):
 # ====================================================
 # OPERADORES PARA IMPORTAR MODELOS 3D
 # ====================================================
+# Función update para carpeta_modelos que fuerza redibujar la interfaz y actualiza el enum
+def update_carpeta(self, context):
+    # Forzar el redraw de todas las áreas 3D
+    for area in context.screen.areas:
+        if area.type == 'VIEW_3D':
+            area.tag_redraw()
+    # Actualizar el valor de modelo_seleccionado tomando el primer elemento disponible
+    items = actualizar_modelos(self, context)
+    if items:
+        context.scene.modelo_seleccionado = items[0][0]
+    else:
+        context.scene.modelo_seleccionado = ""
+
 # Propiedades para almacenar la ruta de la carpeta y el modelo seleccionado
-bpy.types.Scene.carpeta_modelos = bpy.props.StringProperty(name="Carpeta de Modelos", default="")
+bpy.types.Scene.carpeta_modelos = bpy.props.StringProperty(name="Carpeta de Modelos", default="", update=update_carpeta)
 bpy.types.Scene.modelo_seleccionado = bpy.props.EnumProperty(items=[], name="Modelo Seleccionado")
 
 def actualizar_modelos(self, context):
@@ -255,7 +268,7 @@ class AbrirCarpetaOperator(bpy.types.Operator):
     def execute(self, context):
         # Asegurarse de que la propiedad existe, si no, se vuelve a definir
         if not hasattr(context.scene, "carpeta_modelos"):
-            bpy.types.Scene.carpeta_modelos = bpy.props.StringProperty(name="Carpeta de Modelos", default="")
+            bpy.types.Scene.carpeta_modelos = bpy.props.StringProperty(name="Carpeta de Modelos", default="", update=update_carpeta)
         context.scene.carpeta_modelos = self.directory
         return {'FINISHED'}
 
