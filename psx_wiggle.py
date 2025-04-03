@@ -116,7 +116,7 @@ class SimpleWigglePanel(bpy.types.Panel):
     bl_idname = "OBJECT_PT_ps1_wiggle"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'PS1 Tools'
+    bl_category = 'Render PS1'
 
     def draw(self, context):
         layout = self.layout
