@@ -26,6 +26,7 @@ from . import relative_track
 from . import apply_settings
 from . import vertex_lighting
 from . import render_menu
+from . import psx_wiggle
 from . import Find_invalid_data
 from . import basic_uv_tools
 from . import skybox_gradient
@@ -60,6 +61,7 @@ def register():
         apply_settings,
         vertex_lighting,
         render_menu,
+        psx_wiggle,
         Find_invalid_data,
         basic_uv_tools,
         skybox_gradient,
@@ -103,6 +105,7 @@ def unregister():
         apply_settings,
         vertex_lighting,
         render_menu,
+        psx_wiggle,
         Find_invalid_data,
         basic_uv_tools,
         skybox_gradient,
