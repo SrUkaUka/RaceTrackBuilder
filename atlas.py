@@ -1,12 +1,26 @@
 import bpy
 import os
-from bpy.props import EnumProperty, BoolProperty, StringProperty, CollectionProperty, IntProperty
-from bpy.types import Operator, Panel
+import re
+from bpy.props import EnumProperty, BoolProperty, StringProperty, CollectionProperty, IntProperty, PointerProperty
+from bpy.types import Operator, Panel, PropertyGroup
 from bpy_extras.io_utils import ImportHelper
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 # ====================================================
-# Panel único para selección de combinaciones y acciones
+# Función auxiliar para ordenar archivos de forma natural:
+# Si el nombre del archivo (sin extensión) termina en números,
+# se usará ese número para ordenar; de lo contrario se usa el nombre.
+# ====================================================
+def sort_key(file_path):
+    name = os.path.splitext(os.path.basename(file_path))[0]
+    match = re.search(r'(\d+)$', name)
+    if match:
+        return (0, int(match.group(1)))
+    else:
+        return (1, name)
+
+# ====================================================
+# PANEL PARA GENERAR ATLAS DE TEXTURAS
 # ====================================================
 class TextureCombinationPanel(Panel):
     """Panel para seleccionar combinaciones de dimensiones y generar atlas"""
@@ -22,50 +36,41 @@ class TextureCombinationPanel(Panel):
 
         layout.label(text="Select Atlas Size:")
         layout.prop(scene, "atlas_size")
-        # Se añade opción para tamaño de atlas personalizado
         layout.prop(scene, "use_custom_atlas_size", text="Other (Custom Atlas Size)")
         if scene.use_custom_atlas_size:
             row = layout.row(align=True)
             row.prop(scene, "custom_atlas_width", text="Width")
             row.prop(scene, "custom_atlas_height", text="Height")
             
-        layout.prop(scene, "atlas_colors", text="Number of Colors")
-        
         layout.separator()
-        layout.label(text="Selecciona Dimensiones Base:")
+        layout.label(text="Select Textures Width:")
 
-        # Fila para base 16
         row = layout.row(align=True)
         row.prop(scene, "use_base_16", text="16")
         if scene.use_base_16:
-            row.prop(scene, "base_16_second", text="Secundaria")
+            row.prop(scene, "base_16_second", text="Height")
 
-        # Fila para base 32
         row = layout.row(align=True)
         row.prop(scene, "use_base_32", text="32")
         if scene.use_base_32:
-            row.prop(scene, "base_32_second", text="Secundaria")
+            row.prop(scene, "base_32_second", text="Height")
 
-        # Fila para base 64
         row = layout.row(align=True)
         row.prop(scene, "use_base_64", text="64")
         if scene.use_base_64:
-            row.prop(scene, "base_64_second", text="Secundaria")
+            row.prop(scene, "base_64_second", text="Height")
 
-        # Fila para base 128
         row = layout.row(align=True)
         row.prop(scene, "use_base_128", text="128")
         if scene.use_base_128:
-            row.prop(scene, "base_128_second", text="Secundaria")
+            row.prop(scene, "base_128_second", text="Height")
 
-        # Fila para base 256
         row = layout.row(align=True)
         row.prop(scene, "use_base_256", text="256")
         if scene.use_base_256:
-            row.prop(scene, "base_256_second", text="Secundaria")
+            row.prop(scene, "base_256_second", text="Height")
 
         layout.separator()
-        # Opción "Other" para dimensiones personalizadas
         layout.prop(scene, "use_custom_dimensions", text="Other (Custom Dimensions)")
         if scene.use_custom_dimensions:
             row = layout.row(align=True)
@@ -73,35 +78,30 @@ class TextureCombinationPanel(Panel):
             row.prop(scene, "custom_height", text="Height")
 
         layout.separator()
-        # Botón para generar atlas según combinaciones seleccionadas (abre explorador de archivos)
-        layout.operator("atlas.generate_combinations", text="Generar Atlas (Combinaciones)")
+        layout.operator("atlas.generate_combinations", text="Generate Atlas (Combined)")
         layout.separator()
-        # Botón para seleccionar texturas manualmente y generar atlas dinámico
         layout.operator("atlas.select_textures", text="Select Textures (Dynamic)")
         layout.separator()
-        # Se ha quitado el botón Numerate Textures
-        layout.separator()
-        # Botón para cambiar el número de colores de una imagen seleccionada (nuevo flujo)
-        layout.operator("atlas.change_texture_colors", text="Change Texture Colors")
-
 
 # ====================================================
-# Función común de cuantización (convertir a RGB, paleta adaptativa y reconversión a RGBA)
+# Función común de cuantización con soporte para canal alfa:
+# Se separa el canal alfa y se reintroduce después de cuantizar la parte RGB.
 # ====================================================
 def quantize_image(image_path, colors):
     try:
-        img = Image.open(image_path)
-        img = img.convert("RGB")
-        img_reduced = img.convert("P", palette=Image.ADAPTIVE, colors=colors)
-        return img_reduced.convert("RGBA")
+        img = Image.open(image_path).convert("RGBA")
+        r, g, b, a = img.split()
+        rgb = Image.merge("RGB", (r, g, b))
+        rgb_quantized = rgb.convert("P", palette=Image.ADAPTIVE, colors=colors)
+        rgb_quantized = rgb_quantized.convert("RGB")
+        quantized_image = Image.merge("RGBA", (*rgb_quantized.split(), a))
+        return quantized_image
     except Exception as e:
         print(f"Error procesando {image_path}: {e}")
         return None
 
-
 # ====================================================
-# Operador para generar atlas usando las combinaciones seleccionadas  
-# (abre el explorador de archivos para elegir el origen de las texturas)
+# OPERADOR PARA GENERAR ATLAS CON COMBINACIONES
 # ====================================================
 class GenerateCombinationAtlasOperator(Operator, ImportHelper):
     """Genera atlas agrupando las texturas según las combinaciones seleccionadas.
@@ -116,7 +116,6 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
         file_path = self.filepath
         folder_path = os.path.dirname(file_path)
 
-        # Determinar dimensiones del atlas (cuadrado o personalizado)
         if scene.use_custom_atlas_size:
             atlas_width = scene.custom_atlas_width
             atlas_height = scene.custom_atlas_height
@@ -125,7 +124,6 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
             atlas_width = atlas_size
             atlas_height = atlas_size
 
-        # Recoger las combinaciones activas (por ejemplo, "16x32")
         combinations = []
         if scene.use_base_16:
             combinations.append(f"16x{scene.base_16_second}")
@@ -137,7 +135,6 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
             combinations.append(f"128x{scene.base_128_second}")
         if scene.use_base_256:
             combinations.append(f"256x{scene.base_256_second}")
-        # Incluir opción personalizada si está activada
         if scene.use_custom_dimensions:
             combinations.append(f"{scene.custom_width}x{scene.custom_height}")
 
@@ -151,19 +148,12 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
         return {'FINISHED'}
 
     def get_texture_files(self, folder_path):
-        """Obtiene los archivos de imagen de la carpeta seleccionada"""
         texture_files = [os.path.join(folder_path, f)
                          for f in os.listdir(folder_path)
                          if f.lower().endswith(('.png', '.jpg'))]
-        return sorted(texture_files)
+        return sorted(texture_files, key=sort_key)
 
     def create_texture_atlases(self, atlas_width, atlas_height, texture_files, allowed_combinations, atlas_colors, scene):
-        """
-        Agrupa las texturas según su combinación "ancho x alto" y crea un atlas por cada grupo.
-        Solo se procesan aquellas imágenes cuya combinación (por ejemplo, "16x32") esté permitida.
-        Se utiliza la función de cuantización común para aplicar la reducción de colores.
-        """
-        # Crear un diccionario para agrupar: clave = "WxH"
         grouped_textures = {comb: [] for comb in allowed_combinations}
         for texture_path in texture_files:
             try:
@@ -176,7 +166,6 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
             if comb in grouped_textures:
                 grouped_textures[comb].append(texture_path)
 
-        # Para cada grupo, crear uno o más atlas
         for comb, images in grouped_textures.items():
             if not images:
                 continue
@@ -187,9 +176,10 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
             for texture_path in images:
                 if texture_path in used_textures:
                     continue
-                # Se aplica la función común de cuantización
-                texture = quantize_image(texture_path, atlas_colors)
-                if texture is None:
+                try:
+                    texture = Image.open(texture_path).convert("RGBA")
+                except Exception as e:
+                    print(f"Error procesando {texture_path}: {e}")
                     continue
                 img_width, img_height = texture.size
                 if x_offset + img_width > atlas_width:
@@ -215,7 +205,6 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
                 self.load_texture_into_blender(atlas_output_path)
 
     def get_unique_path(self, output_dir, base_name, ext, start_index):
-        """Genera un nombre de archivo único para evitar sobrescribir archivos existentes."""
         index = start_index
         while True:
             candidate = os.path.join(output_dir, f"{base_name}_{index}{ext}")
@@ -224,7 +213,6 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
             index += 1
 
     def load_texture_into_blender(self, image_path):
-        """Carga el atlas en Blender y lo asigna a un material nuevo"""
         try:
             img = bpy.data.images.load(image_path)
         except Exception as e:
@@ -243,9 +231,8 @@ class GenerateCombinationAtlasOperator(Operator, ImportHelper):
             else:
                 obj.data.materials[0] = mat
 
-
 # ====================================================
-# Operador para seleccionar texturas manualmente y generar un atlas dinámico
+# OPERADOR PARA SELECCIONAR TEXTURAS Y GENERAR UN ATLAS DINÁMICO
 # ====================================================
 class SelectTexturesOperator(Operator, ImportHelper):
     """Permite seleccionar manualmente texturas (tamaños variados) y generar un atlas dinámico."""
@@ -257,13 +244,13 @@ class SelectTexturesOperator(Operator, ImportHelper):
 
     def execute(self, context):
         selected_files = [os.path.join(self.directory, f.name) for f in self.files]
+        selected_files = sorted(selected_files, key=sort_key)
         if not selected_files:
             self.report({'WARNING'}, "No files selected!")
             return {'CANCELLED'}
 
         scene = context.scene
         atlas_colors = int(scene.atlas_colors)
-        # Determinar dimensiones del atlas (cuadrado o personalizado)
         if scene.use_custom_atlas_size:
             atlas_width = scene.custom_atlas_width
             atlas_height = scene.custom_atlas_height
@@ -277,11 +264,6 @@ class SelectTexturesOperator(Operator, ImportHelper):
         return {'FINISHED'}
 
     def create_dynamic_atlas(self, atlas_width, atlas_height, texture_files, atlas_colors):
-        """
-        Crea un atlas dinámico sin importar el tamaño original de cada textura.
-        Se realiza un packing simple colocando las texturas en filas.
-        Se utiliza la función común de cuantización para aplicar la reducción de colores.
-        """
         atlas_index = 1
         x_offset, y_offset = 0, 0
         max_row_height = 0
@@ -289,8 +271,10 @@ class SelectTexturesOperator(Operator, ImportHelper):
         atlas_image = Image.new("RGBA", (atlas_width, atlas_height), (0, 0, 0, 0))
 
         for texture_path in texture_files:
-            texture = quantize_image(texture_path, atlas_colors)
-            if texture is None:
+            try:
+                texture = Image.open(texture_path).convert("RGBA")
+            except Exception as e:
+                print(f"Error procesando {texture_path}: {e}")
                 continue
             img_width, img_height = texture.size
 
@@ -346,9 +330,8 @@ class SelectTexturesOperator(Operator, ImportHelper):
             else:
                 obj.data.materials[0] = mat
 
-
 # ====================================================
-# Operador para renombrar texturas
+# OPERADOR PARA RENOMBRAR TEXTURAS
 # ====================================================
 class NumerateTexturesOperator(Operator, ImportHelper):
     """Renombra las texturas agregándoles un sufijo numérico"""
@@ -364,7 +347,7 @@ class NumerateTexturesOperator(Operator, ImportHelper):
     def numerate_textures(self, folder_path):
         texture_files = [f for f in os.listdir(folder_path)
                          if f.lower().endswith(('.png', '.jpg'))]
-        texture_files.sort()
+        texture_files = sorted(texture_files, key=lambda f: sort_key(os.path.join(folder_path, f)))
         for index, filename in enumerate(texture_files, start=1):
             name, ext = os.path.splitext(filename)
             new_name = f"{name}_{index:03d}{ext}"
@@ -375,83 +358,138 @@ class NumerateTexturesOperator(Operator, ImportHelper):
                 print(f"✅ '{filename}' → '{new_name}'")
         print("✅ Todas las texturas han sido numeradas correctamente.")
 
+# ====================================================
+# NUEVO OPERADOR Y PANEL PARA CONVERTIR COLORES DE TEXTURAS
+# ====================================================
+SATURATION_FACTOR = 1.2
 
-# ====================================================
-# NUEVO OPERADOR: Cambiar la cantidad de colores de una o varias imágenes seleccionadas
-# ====================================================
-class ChangeTextureColorsOperator(Operator, ImportHelper):
-    """Cambia la cantidad de colores de una o varias imágenes seleccionadas al número especificado, manteniendo mayor detalle"""
-    bl_idname = "atlas.change_texture_colors"
-    bl_label = "Change Texture Colors"
-    filter_glob: StringProperty(default="*.png;*.jpg;*.jpeg", options={'HIDDEN'})
+class TextureColorSettings(PropertyGroup):
+    colors: IntProperty(
+        name="Colors",
+        description="Define the number of colors for conversion",
+        default=16,
+        min=1,
+        max=256
+    )
+    alpha: BoolProperty(
+        name="Alpha",
+        description="Aplicar procesamiento especial para imágenes con canal alfa (pone fondo negro y lo elimina)",
+        default=False
+    )
+
+class OT_SelectTexturesConvertColors(Operator, ImportHelper):
+    bl_idname = "file.select_textures_convert_colors"
+    bl_label = "Select Textures and Convert Colors"
+
     files: CollectionProperty(type=bpy.types.OperatorFileListElement)
-    directory: StringProperty(subtype='DIR_PATH')
+    directory: StringProperty(
+        name="Directory",
+        description="Directory of the selected textures",
+        maxlen=1024,
+        subtype='DIR_PATH'
+    )
 
     def execute(self, context):
-        scene = context.scene
-        atlas_colors = int(scene.atlas_colors)
-        
-        # Obtener la lista de archivos seleccionados
-        selected_files = []
-        if self.files:
-            selected_files = [os.path.join(self.directory, f.name) for f in self.files]
-        elif self.filepath:
-            selected_files = [self.filepath]
-            
-        if not selected_files:
-            self.report({'WARNING'}, "No se seleccionó ninguna imagen.")
-            return {'CANCELLED'}
+        settings = context.scene.texture_color_settings
+        num_colors = settings.colors
+        use_alpha = settings.alpha
 
-        for file_path in selected_files:
-            # Se utiliza la función común de cuantización para cada imagen
-            img_reduced = quantize_image(file_path, atlas_colors)
-            if img_reduced is None:
-                self.report({'ERROR'}, f"Error procesando la imagen: {file_path}")
-                continue
-
-            # Guardar la imagen reducida en un archivo nuevo con un nombre único
-            output_path = self.get_unique_path(os.path.dirname(file_path), "texture_quantized", ".png", 1)
-            img_reduced.save(output_path)
-            self.report({'INFO'}, f"Imagen procesada y guardada en: {output_path}")
-
-            # Cargar la textura resultante en Blender y asignarla al objeto activo
-            self.load_texture_into_blender(output_path)
+        folder = self.directory
+        for file_elem in self.files:
+            file_path = os.path.join(folder, file_elem.name)
+            new_path = self.convert_to_n_colors(file_path, num_colors, use_alpha)
+            if new_path:
+                self.report({'INFO'}, f"Saved: {os.path.basename(new_path)}")
         return {'FINISHED'}
 
-    def get_unique_path(self, output_dir, base_name, ext, start_index):
-        """Genera un nombre de archivo único para evitar sobrescribir archivos existentes."""
-        index = start_index
-        while True:
-            candidate = os.path.join(output_dir, f"{base_name}_{index}{ext}")
-            if not os.path.exists(candidate):
-                return candidate
-            index += 1
-
-    def load_texture_into_blender(self, image_path):
-        """Carga la imagen procesada en Blender y la asigna al material del objeto activo"""
+    def convert_to_n_colors(self, image_path, n_colors, use_alpha):
         try:
-            img = bpy.data.images.load(image_path)
+            # Abrir la imagen original en modo RGBA
+            image_orig = Image.open(image_path).convert("RGBA")
+            if use_alpha:
+                # Proceso con fondo negro para imágenes con alfa (procedimiento común)
+                background = Image.new("RGBA", image_orig.size, (0, 0, 0, 255))
+                image_solid = Image.alpha_composite(background, image_orig)
+                image_rgb = image_solid.convert("RGB")
+                # Determinar si hay píxeles semitransparentes en la imagen original
+                semitransparent = image_orig.getchannel("A").getextrema()[0] < 255
+                quantize_colors = n_colors + 1 if semitransparent else n_colors
+                # Aumentar la saturación y cuantizar la imagen (con fondo negro)
+                image_sat = ImageEnhance.Color(image_rgb).enhance(SATURATION_FACTOR)
+                quantized = image_sat.quantize(colors=quantize_colors, method=Image.MEDIANCUT, dither=Image.FLOYDSTEINBERG)
+                final_image = ImageEnhance.Color(quantized.convert("RGB")).enhance(1 / SATURATION_FACTOR)
+                # Convertir a RGBA para manipular la transparencia
+                final_image = final_image.convert("RGBA")
+                pixels = final_image.load()
+                for y in range(final_image.height):
+                    for x in range(final_image.width):
+                        r, g, b, a = pixels[x, y]
+                        # Si el píxel es puro negro, lo hacemos transparente
+                        if (r, g, b) == (0, 0, 0):
+                            pixels[x, y] = (0, 0, 0, 0)
+                        else:
+                            pixels[x, y] = (r, g, b, 255)
+            else:
+                # Proceso normal sin componer sobre fondo negro
+                image_rgb = image_orig.convert("RGB")
+                # Determinar si hay píxeles semitransparentes en la imagen original
+                semitransparent = image_orig.getchannel("A").getextrema()[0] < 255
+                quantize_colors = n_colors + 1 if semitransparent else n_colors
+                image_sat = ImageEnhance.Color(image_rgb).enhance(SATURATION_FACTOR)
+                quantized = image_sat.quantize(colors=quantize_colors, method=Image.MEDIANCUT, dither=Image.FLOYDSTEINBERG)
+                final_image = ImageEnhance.Color(quantized.convert("RGB")).enhance(1 / SATURATION_FACTOR)
+                # Convertir a RGBA y conservar el canal alfa original
+                final_image = final_image.convert("RGBA")
+                final_image.putalpha(image_orig.split()[-1])
+
+            base_name, ext = os.path.splitext(image_path)
+            new_file_name = f"{base_name}_quantized_{n_colors}{ext}"
+            final_image.save(new_file_name, optimize=True)
+
+            print(f"Image saved as: {new_file_name}")
+            return new_file_name
         except Exception as e:
-            print(f"Error cargando imagen {image_path}: {e}")
-            return
+            self.report({'ERROR'}, f"Error converting {image_path}: {e}")
+            return None
 
-        obj = bpy.context.active_object
-        if not obj or obj.type != 'MESH':
-            print("No hay objeto activo o el objeto seleccionado no es un mesh.")
-            return
+class OT_IncreaseColorCount(Operator):
+    bl_idname = "texture.increase_color_count"
+    bl_label = "Increase Color Count"
+    def execute(self, context):
+        settings = context.scene.texture_color_settings
+        if settings.colors < 256:
+            settings.colors += 1
+        return {'FINISHED'}
 
-        if not obj.data.materials:
-            mat = bpy.data.materials.new(name="AtlasMaterial_SingleTexture")
-            mat.use_nodes = True
-            obj.data.materials.append(mat)
-        else:
-            mat = obj.data.materials[0]
+class OT_DecreaseColorCount(Operator):
+    bl_idname = "texture.decrease_color_count"
+    bl_label = "Decrease Color Count"
+    def execute(self, context):
+        settings = context.scene.texture_color_settings
+        if settings.colors > 1:
+            settings.colors -= 1
+        return {'FINISHED'}
 
-        bsdf = mat.node_tree.nodes.get("Principled BSDF")
-        tex_node = mat.node_tree.nodes.new("ShaderNodeTexImage")
-        tex_node.image = img
-        mat.node_tree.links.new(bsdf.inputs["Base Color"], tex_node.outputs["Color"])
+class PT_ConvertColorsPanel(Panel):
+    bl_idname = "PT_ConvertColorsPanel"
+    bl_label = "Convert Texture Colors"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Atlas'
 
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.texture_color_settings
+
+        row = layout.row(align=True)
+        row.operator("texture.decrease_color_count", text="<")
+        row.prop(settings, "colors", slider=True)
+        row.operator("texture.increase_color_count", text=">")
+        
+        # Nuevo checkbox para activar el procesamiento con alfa
+        layout.prop(settings, "alpha", text="Alpha")
+
+        layout.operator("file.select_textures_convert_colors", text="Convert Texture Colors")
 
 # ====================================================
 # Funciones para registrar y eliminar propiedades del escenario
@@ -463,12 +501,11 @@ def register_properties():
         default='256'
     )
     bpy.types.Scene.atlas_colors = IntProperty(
-        name="Number of Colors",
+        name="Colors",
         default=16,
         min=1,
         max=256
     )
-    # Propiedades para tamaño de atlas personalizado
     bpy.types.Scene.use_custom_atlas_size = BoolProperty(name="Other (Custom Atlas Size)", default=False)
     bpy.types.Scene.custom_atlas_width = IntProperty(name="Atlas Width", default=256, min=1)
     bpy.types.Scene.custom_atlas_height = IntProperty(name="Atlas Height", default=256, min=1)
@@ -503,7 +540,6 @@ def register_properties():
         items=[('16', "16", ""), ('32', "32", ""), ('64', "64", ""), ('128', "128", "")],
         default='16'
     )
-    # Propiedades para la opción "Other" (dimensiones personalizadas)
     bpy.types.Scene.use_custom_dimensions = BoolProperty(name="Other", default=False)
     bpy.types.Scene.custom_width = IntProperty(name="Custom Width", default=64, min=1)
     bpy.types.Scene.custom_height = IntProperty(name="Custom Height", default=64, min=1)
@@ -528,7 +564,6 @@ def unregister_properties():
     del bpy.types.Scene.custom_width
     del bpy.types.Scene.custom_height
 
-
 # ====================================================
 # Registro en Blender
 # ====================================================
@@ -538,14 +573,24 @@ def register():
     bpy.utils.register_class(GenerateCombinationAtlasOperator)
     bpy.utils.register_class(SelectTexturesOperator)
     bpy.utils.register_class(NumerateTexturesOperator)
-    bpy.utils.register_class(ChangeTextureColorsOperator)
+    bpy.utils.register_class(TextureColorSettings)
+    bpy.types.Scene.texture_color_settings = PointerProperty(type=TextureColorSettings)
+    bpy.utils.register_class(OT_SelectTexturesConvertColors)
+    bpy.utils.register_class(OT_IncreaseColorCount)
+    bpy.utils.register_class(OT_DecreaseColorCount)
+    bpy.utils.register_class(PT_ConvertColorsPanel)
 
 def unregister():
     bpy.utils.unregister_class(TextureCombinationPanel)
     bpy.utils.unregister_class(GenerateCombinationAtlasOperator)
     bpy.utils.unregister_class(SelectTexturesOperator)
     bpy.utils.unregister_class(NumerateTexturesOperator)
-    bpy.utils.unregister_class(ChangeTextureColorsOperator)
+    bpy.utils.unregister_class(PT_ConvertColorsPanel)
+    bpy.utils.unregister_class(OT_SelectTexturesConvertColors)
+    bpy.utils.unregister_class(OT_IncreaseColorCount)
+    bpy.utils.unregister_class(OT_DecreaseColorCount)
+    bpy.utils.unregister_class(TextureColorSettings)
+    del bpy.types.Scene.texture_color_settings
     unregister_properties()
 
 if __name__ == "__main__":
