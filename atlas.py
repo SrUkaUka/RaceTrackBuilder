@@ -1,10 +1,19 @@
+import sys
+import subprocess
+
+# Intentar importar PIL; si falla, se instala Pillow automáticamente
+try:
+    from PIL import Image, ImageEnhance
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow"])
+    from PIL import Image, ImageEnhance
+
 import bpy
 import os
 import re
 from bpy.props import EnumProperty, BoolProperty, StringProperty, CollectionProperty, IntProperty, PointerProperty
 from bpy.types import Operator, Panel, PropertyGroup
 from bpy_extras.io_utils import ImportHelper
-from PIL import Image, ImageEnhance
 
 # ====================================================
 # Función auxiliar para ordenar archivos de forma natural:
